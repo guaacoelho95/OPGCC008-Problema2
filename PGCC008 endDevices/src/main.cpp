@@ -79,7 +79,7 @@
     };
 
 // Inicializa o array de dados dos sensores
-    float pinData[PINS_NUM] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    float pinData[PINS_NUM] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 // Localização deste endDevice
     float latitude = -12.197422000000014;
@@ -110,7 +110,14 @@ void receivedCallback(uint32_t from, String &msg){
     deserializeJson(receivedJson, msg);
     // se a mensagem foi recebida do Sink, realize a atualização das configurações dos parâmetros recebidos
     // recebe pin_def e passa as configurações para pinDef[] ?? aparentemente, não funciona, pois pinDef[] precisa estar no setup
+    boolean pins = receivedJson["pinDef"];
+    int i = 0;
+    for(i = 0;i < PINS_NUM;++i){
+        pinDef[i].pinSet = pins[&i];
+        //pinDef[i].pinNum;
+    }
     // chamar setup(); para fazer nova configuração?
+    
     NODE_MASTER = receivedJson["node_master"];
     if(node_id == NODE_MASTER){
         Serial.println(msg);
@@ -147,7 +154,6 @@ void meshInit(){
 
 // Leitura dos sensores
 void readSensors(){
-    // A DEFINIÇÃO DOS SENSORES DEVE SER NO SETUP, COMO FAZER PARA FUNCIONAR DE FORMA DINÂMICA POR PARÂMETRO DO SINK
     uint8_t i;
     int p = 0;
     for(i = 0;i < PINS_NUM;++i){

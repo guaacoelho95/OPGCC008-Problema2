@@ -162,6 +162,7 @@ void meshInit(){
 
 // Leitura dos sensores
 void readSensors(){
+    // A DEFINIÇÃO DOS SENSORES DEVE SER NO SETUP, COMO FAZER PARA FUNCIONAR DE FORMA DINÂMICA POR PARÂMETRO DO SINK
     uint8_t i;
     int p = 0;
     for(i = 0;i < PINS_NUM;++i){

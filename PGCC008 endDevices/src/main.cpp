@@ -109,23 +109,8 @@ void receivedCallback(uint32_t from, String &msg){
     DynamicJsonDocument receivedJson(1024);
     deserializeJson(receivedJson, msg);
     // se a mensagem foi recebida do Sink, realize a atualização das configurações dos parâmetros recebidos
-    // recebe pin_def e passa as configurações para pinDef[]
-    // void readSensors(){
-    //     uint8_t i;
-    //     int p = 0;
-    //     for(i = 0;i < PINS_NUM;++i){
-    //     if(pinDef[i].pinSet == true){
-    //         pinMode(pinDef[i].pinNum, INPUT);
-    //         if(i == 0){
-    //             pinData[p] = analogRead(pinDef[i].pinNum);
-    //         }
-    //         else{
-    //             pinData[p] = digitalRead(pinDef[i].pinNum); 
-    //         }
-    //         p += 1;
-    //     }
-    //     }
-    // }
+    // recebe pin_def e passa as configurações para pinDef[] ?? aparentemente, não funciona, pois pinDef[] precisa estar no setup
+    // chamar setup(); para fazer nova configuração?
     NODE_MASTER = receivedJson["node_master"];
     if(node_id == NODE_MASTER){
         Serial.println(msg);
@@ -167,7 +152,6 @@ void readSensors(){
     int p = 0;
     for(i = 0;i < PINS_NUM;++i){
       if(pinDef[i].pinSet == true){
-          pinMode(pinDef[i].pinNum, INPUT);
           if(i == 0){
               pinData[p] = analogRead(pinDef[i].pinNum);
           }
@@ -270,6 +254,12 @@ void setup(){
     DateTime.begin(/* timeout param */);
     meshInit();
     Serial.println(node_id);
+    int i = 0;
+    for(i = 0;i < PINS_NUM;++i){
+      if(pinDef[i].pinSet == true){
+          pinMode(pinDef[i].pinNum, INPUT);
+      }
+    }
 }
 
 // Loop

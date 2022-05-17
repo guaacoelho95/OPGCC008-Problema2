@@ -1,0 +1,44 @@
+# -------------------------------------------------------------------------------
+#       Código: Generical endDevice (mesh)
+#       Componentes:
+#         - NodeMCU ESP8266 v3 CH340
+#         - Plug and Play Sensors
+#       Topologia: Mesh/TCP Broadcast      
+#       Versão 1.0
+#       Start: 29/Apr/2022
+#       Por: Noberto Maciel / Gustavo Coelho
+#       PGCC Uefs: PGCC008 - Sistemas Computacionais
+#  -------------------------------------------------------------------------------
+
+# 1. connect node to Sink by USB Serial
+# 2. Setup:
+#         2.1 start serial
+#         2.2 get timestamp by wifi (false)
+#         2.3 start mesh
+# 3. Loop:
+#         3.1 readSerialData
+#             if exists data on serial
+#                 get json string
+#                 print json string
+#                 deserialize json
+#                 if node_id == json.node_master
+#                      NODE_MASTER = json.node_master
+#             else
+#                 print idNode
+
+
+# protocol: {
+#       device      : uint32_t id_device,
+#       node_master : uint32_t id_device
+#       node_list   : uint32_t array,
+#       nodeTime    : unsigned long
+#       send        : boolean true,
+#       type        : uint8_t 1|2|3,
+#       timestamp   : unsigned long,
+#       t_sensor    : float,
+#       latitude    : float,
+#       longitude   : float,
+#       pin         : uint8_t array
+#       val         : float array
+#       pin_def     : boolean array
+# }

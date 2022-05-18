@@ -256,10 +256,10 @@ void sendMessage(){
         }
     }
     serializeJson(jsonData, msg);
-    
-    //Serial.println("-------> This endDevice: "+msg);
 
     if(node_id == NODE_MASTER){
+        Serial.println("------------> This endDevice (nodeMaster) <------------");
+        Serial.println(msg);
         if(meshSend){
             if(sendType == 3){
                 mesh.sendBroadcast(msg);

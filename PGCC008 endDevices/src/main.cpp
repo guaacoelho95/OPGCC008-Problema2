@@ -23,24 +23,24 @@
     #define   PINS_NUM          18
 
 // define os pinhos
-    #define   ANALOG            2
-    #define   GPIO00            18
-    #define   GPIO01            22
-    #define   GPIO02            17
-    #define   GPIO03            21
-    #define   GPIO04            19
-    #define   GPIO05            20
-    #define   GPIO06            14
-    #define   GPIO07            10
-    #define   GPIO08            13
-    #define   GPIO09            9
-    #define   GPIO10            12
-    #define   GPIO11            11
-    #define   GPIO12            6
-    #define   GPIO13            7
-    #define   GPIO14            5
-    #define   GPIO15            16
-    #define   GPIO16            4
+    // #define   ANALOG            2
+    // #define   GPIO00            18
+    // #define   GPIO01            22
+    // #define   GPIO02            17
+    // #define   GPIO03            21
+    // #define   GPIO04            19
+    // #define   GPIO05            20
+    // #define   GPIO06            14  //unused
+    // #define   GPIO07            10  //unused
+    // #define   GPIO08            13  //unused
+    // #define   GPIO09            9   //unused
+    // #define   GPIO10            12  //unused
+    // #define   GPIO11            11  //unused
+    // #define   GPIO12            6
+    // #define   GPIO13            7
+    // #define   GPIO14            5
+    // #define   GPIO15            16
+    // #define   GPIO16            4
 
     // #define   ANALOG            A0
     // #define   GPIO00            D3
@@ -49,17 +49,36 @@
     // #define   GPIO03            RX
     // #define   GPIO04            D2
     // #define   GPIO05            D1
-    // #define   GPIO06            SK  //unsed
-    // #define   GPIO07            S0  //unsed
-    // #define   GPIO08            S1  //unsed
-    // #define   GPIO09            S2  //unsed
-    // #define   GPIO10            S3  //unsed
-    // #define   GPIO11            SC  //unsed
-    // #define   GPIO12            D6  //unsed
+    // #define   GPIO06            SK  //unused
+    // #define   GPIO07            S0  //unused
+    // #define   GPIO08            S1  //unused
+    // #define   GPIO09            S2  //unused
+    // #define   GPIO10            S3  //unused
+    // #define   GPIO11            SC  //unused
+    // #define   GPIO12            D6  //unused
     // #define   GPIO13            D7
     // #define   GPIO14            D5
     // #define   GPIO15            D8
     // #define   GPIO16            D0
+
+    #define   ANALOG            A0
+    #define   GPIO00            D3
+    #define   GPIO01            D3
+    #define   GPIO02            D4
+    #define   GPIO03            D4
+    #define   GPIO04            D2
+    #define   GPIO05            D1
+    #define   GPIO06            D1  //unused
+    #define   GPIO07            D0  //unused
+    #define   GPIO08            D1  //unused
+    #define   GPIO09            D2  //unused
+    #define   GPIO10            D3  //unused
+    #define   GPIO11            D3  //unused
+    #define   GPIO12            D6  //unused
+    #define   GPIO13            D7
+    #define   GPIO14            D5
+    #define   GPIO15            D8
+    #define   GPIO16            D0
 
 // contagem de teste para impressao na tela
     int c = 0;
@@ -149,14 +168,15 @@ void receivedCallback(uint32_t from, String &msg){
     deserializeJson(receivedJson, msg);
     // se a mensagem foi recebida do Sink, realize a atualização das configurações dos parâmetros recebidos
     // recebe pin_def e passa as configurações para pinDef[] ?? aparentemente, não funciona, pois pinDef[] precisa estar no setup
-    boolean pins = receivedJson["pinDef"];
-    if(sizeof(pins) > 0){
+    if(!receivedJson["pinDef"].isNull()){
+        boolean pins = receivedJson["pinDef"];
         uint8_t i = 0;
         for(i = 0;i < PINS_NUM-1;++i){
             pinDef[i].pinSet = pins[&i];
             //pinDef[i].pinNum;
         }
         // chamar setup(); para fazer nova configuração?
+        //setup();
     }
     NODE_MASTER = receivedJson["node_master"];
     if(node_id == NODE_MASTER){
@@ -197,7 +217,7 @@ void readSensors(){
     uint8_t i;
     for(i = 0;i < PINS_NUM-1;++i){
       if(pinDef[i].pinSet == true){
-            byte pin = pinDef[i].pinNum;
+            uint8_t pin = pinDef[i].pinNum;
             if(i == 0){
                 pinData[i] = analogRead(pin);
             }
@@ -237,7 +257,7 @@ void sendMessage(){
     }
     serializeJson(jsonData, msg);
     
-    Serial.println("-------> This endDevice: "+msg);
+    //Serial.println("-------> This endDevice: "+msg);
 
     if(node_id == NODE_MASTER){
         if(meshSend){
@@ -274,13 +294,13 @@ void readSerialData(){
         uint32_t node_master = docSerialRec["node_master"];
         meshSend = docSerialRec["send"];
         sendType = docSerialRec["type"];
-        uint32_t l = docSerialRec["nodeslist"];
         unsigned long t = docSerialRec["timestamp"];
         DateTime.setTime(t);
         T_sensor = docSerialRec["t_sensor"];
-        if(sizeof(l) > 0 and sendType == 2){
+        if(!docSerialRec["nodeslist"].isNull() and sendType == 2){
             j = 0;
             unsigned int i = 0;
+            uint32_t l = docSerialRec["nodeslist"];
             for(i=0;i<sizeof(l);++i){
                 meshList[i] = l[&i];
             }

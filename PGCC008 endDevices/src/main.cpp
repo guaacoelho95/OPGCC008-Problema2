@@ -15,12 +15,51 @@
     #include <painlessMesh.h>
     
 // Parâmetros da rede mesh
-    #define   MESH_PREFIX     "pgcc008"
-    #define   MESH_PASSWORD   "atividade2"
-    #define   MESH_PORT       5555
+    #define   MESH_PREFIX       "pgcc008"
+    #define   MESH_PASSWORD     "atividade2"
+    #define   MESH_PORT         5555
 
 // número de pinos definidos no array pinDef
-    #define   PINS_NUM         18
+    #define   PINS_NUM          18
+
+// define os pinhos
+    #define   ANALOG            2
+    #define   GPIO00            18
+    #define   GPIO01            22
+    #define   GPIO02            17
+    #define   GPIO03            21
+    #define   GPIO04            19
+    #define   GPIO05            20
+    #define   GPIO06            14
+    #define   GPIO07            10
+    #define   GPIO08            13
+    #define   GPIO09            9
+    #define   GPIO10            12
+    #define   GPIO11            11
+    #define   GPIO12            6
+    #define   GPIO13            7
+    #define   GPIO14            5
+    #define   GPIO15            16
+    #define   GPIO16            4
+
+    // #define   ANALOG            A0
+    // #define   GPIO00            D3
+    // #define   GPIO01            TX
+    // #define   GPIO02            D4
+    // #define   GPIO03            RX
+    // #define   GPIO04            D2
+    // #define   GPIO05            D1
+    // #define   GPIO06            SK  //unsed
+    // #define   GPIO07            S0  //unsed
+    // #define   GPIO08            S1  //unsed
+    // #define   GPIO09            S2  //unsed
+    // #define   GPIO10            S3  //unsed
+    // #define   GPIO11            SC  //unsed
+    // #define   GPIO12            D6  //unsed
+    // #define   GPIO13            D7
+    // #define   GPIO14            D5
+    // #define   GPIO15            D8
+    // #define   GPIO16            D0
 
 // contagem de teste para impressao na tela
     int c = 0;
@@ -58,24 +97,24 @@
         bool pinSet;
     } pinInit_t;
     pinInit_t pinDef[] {
-        {2, true},    //A0
-        {18, true},   //GPIO00
-        {22, false},  //GPIO01
-        {17, false},  //GPIO02
-        {21, false},  //GPIO03
-        {19, false},  //GPIO04
-        {20, false},  //GPIO05
-        {14, false},  //GPIO06
-        {10, false},  //GPIO07
-        {13, false},  //GPIO08
-        {9, false},   //GPIO09
-        {12, false},  //GPIO10
-        {11, false},  //GPIO11
-        {6, false},   //GPIO12
-        {7, false},   //GPIO13
-        {5, false},   //GPIO14
-        {16, false},  //GPIO15
-        {4, false}    //GPIO16
+        {ANALOG, true},
+        {GPIO00, false},
+        {GPIO01, false},
+        {GPIO02, false},
+        {GPIO03, false},
+        {GPIO04, false},
+        {GPIO05, false},
+        {GPIO06, false},
+        {GPIO07, false},
+        {GPIO08, false},
+        {GPIO09, false},
+        {GPIO10, false},
+        {GPIO11, false},
+        {GPIO12, false},
+        {GPIO13, false},
+        {GPIO14, false},
+        {GPIO15, false},
+        {GPIO16, false}
     };
 
 // Inicializa o array de dados dos sensores
@@ -111,13 +150,14 @@ void receivedCallback(uint32_t from, String &msg){
     // se a mensagem foi recebida do Sink, realize a atualização das configurações dos parâmetros recebidos
     // recebe pin_def e passa as configurações para pinDef[] ?? aparentemente, não funciona, pois pinDef[] precisa estar no setup
     boolean pins = receivedJson["pinDef"];
-    int i = 0;
-    for(i = 0;i < PINS_NUM;++i){
-        pinDef[i].pinSet = pins[&i];
-        //pinDef[i].pinNum;
+    if(sizeof(pins) > 0){
+        uint8_t i = 0;
+        for(i = 0;i < PINS_NUM-1;++i){
+            pinDef[i].pinSet = pins[&i];
+            //pinDef[i].pinNum;
+        }
+        // chamar setup(); para fazer nova configuração?
     }
-    // chamar setup(); para fazer nova configuração?
-    
     NODE_MASTER = receivedJson["node_master"];
     if(node_id == NODE_MASTER){
         Serial.println(msg);
@@ -155,23 +195,25 @@ void meshInit(){
 // Leitura dos sensores
 void readSensors(){
     uint8_t i;
-    int p = 0;
-    for(i = 0;i < PINS_NUM;++i){
+    for(i = 0;i < PINS_NUM-1;++i){
       if(pinDef[i].pinSet == true){
-          if(i == 0){
-              pinData[p] = analogRead(pinDef[i].pinNum);
-          }
-          else{
-              pinData[p] = digitalRead(pinDef[i].pinNum); 
-          }
-          p += 1;
+            byte pin = pinDef[i].pinNum;
+            if(i == 0){
+                pinData[i] = analogRead(pin);
+            }
+            else{
+                pinData[i] = digitalRead(pin); 
+            }
+      }
+      else{
+            pinData[i] = 0;
       }
     }
 }
 
 // Função de envio de mensagens
 void sendMessage(){
-    int i = 0;
+    uint8_t i = 0;
     String msg = "";
     int timestamp = DateTime.now();
     DynamicJsonDocument jsonData(1024);
@@ -183,13 +225,20 @@ void sendMessage(){
     jsonData["latitude"] = latitude;
     jsonData["longitude"] = longitude;
     readSensors();
-    for(i=0;i<PINS_NUM;++i){
+    for(i=0;i<PINS_NUM-1;++i){
         if(pinDef[i].pinSet == true){
             jsonData["pin"][i] = pinDef[i].pinNum;
             jsonData["val"][i] = pinData[i];
         }
+        else{
+            jsonData["pin"][i] = 0;
+            jsonData["val"][i] = 0;
+        }
     }
     serializeJson(jsonData, msg);
+    
+    Serial.println("-------> This endDevice: "+msg);
+
     if(node_id == NODE_MASTER){
         if(meshSend){
             if(sendType == 3){
@@ -261,9 +310,10 @@ void setup(){
     meshInit();
     Serial.println(node_id);
     int i = 0;
-    for(i = 0;i < PINS_NUM;++i){
+    for(i = 0;i < PINS_NUM-1;++i){
       if(pinDef[i].pinSet == true){
-          pinMode(pinDef[i].pinNum, INPUT);
+          uint8_t pin = pinDef[i].pinNum;
+          pinMode(pin, INPUT);
       }
     }
 }

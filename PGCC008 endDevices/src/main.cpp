@@ -49,10 +49,10 @@
     uint8_t sendType  = 3;
 
 // list of nodes to send msg
-    uint32_t nodesList[4];
+    uint32_t nodeToSend;
 
 // this node id
-    uint32_t node_id = 0;
+    uint32_t nodeOrigin = 0;
 
 // node id to sendSingle
     uint32_t nodeDestination = 0;
@@ -60,11 +60,11 @@
 // retorno do send single
     boolean returnSendSingle = false;
 
+// fixa o número máximo de tentativas de enviar uma msg
+    int maxTries = 5;
+
 // conta o número de tentativas de enviar uma msg
     int countTries = 0;
-
-// indice de array
-    unsigned int j = 0;
 
 // Se true, envia msg do sink recebida pela serial para a mesh
     boolean meshSend = false;
@@ -134,18 +134,21 @@
 void receivedCallback(uint32_t from, String &msg){
     DynamicJsonDocument receivedJson(1024);
     deserializeJson(receivedJson, msg);
-    // se a mensagem foi recebida do Sink, realize a atualização das configurações dos parâmetros recebidos
-    // recebe pin_def e passa as configurações para pinDef[] ?? aparentemente, não funciona, pois pinDef[] precisa estar no setup
-    if(!receivedJson["pinDef"].isNull()){
-        boolean pins = receivedJson["pinDef"];
-        uint8_t i = 0;
-        for(i = 0;i < PINS_NUM-1;++i){
-            pinDef[i].pinSet = pins[&i];
+    if(receivedJson.containsKey("pinDef")){
+        boolean *pins = receivedJson["pinDef"];
+        for(int i = 0;i < PINS_NUM-1;++i){
+            pinDef[i].pinSet = pins[i];
         }
     }
-    NODE_MASTER = receivedJson["node_master"];
-    if(node_id == NODE_MASTER){
-        Serial.println(msg);
+    if(receivedJson.containsKey("timestamp")){
+        int t = receivedJson["timestamp"];
+        DateTime.setTime(t);
+    }
+    if(receivedJson.containsKey("node_master")){
+        NODE_MASTER = receivedJson["node_master"];
+        if(nodeOrigin == NODE_MASTER){
+            Serial.println(msg);
+        }
     }
 }
 
@@ -174,13 +177,12 @@ void meshInit(){
     mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
     userScheduler.addTask( taskSendMessage );
     taskSendMessage.enable();
-    node_id = mesh.getNodeId();
+    nodeOrigin = mesh.getNodeId();
 }
 
 // Leitura dos sensores
 void readSensors(){
-    uint8_t i;
-    for(i = 0;i < PINS_NUM-1;++i){
+    for(int i = 0;i < PINS_NUM-1;++i){
       if(pinDef[i].pinSet == true){
             uint8_t pin = pinDef[i].pinNum;
             if(i == 0){
@@ -194,7 +196,7 @@ void readSensors(){
             pinData[i] = 0;
       }
     }
-    for(i=0;i<PINS_NUM-1;++i){
+    for(int i=0;i<PINS_NUM-1;++i){
         if(pinDef[i].pinSet == true){
             sendJsonData["pin"][i] = pinDef[i].pinNum;
             sendJsonData["val"][i] = pinData[i];
@@ -211,9 +213,9 @@ void sendMessage(){
     int s = 0;
     String msg = "";
     int timestamp = DateTime.now();
-    sendJsonData["device"] = node_id;
+    sendJsonData["device"] = nodeOrigin;
     sendJsonData["node_master"] = NODE_MASTER;
-    sendJsonData["node_list"] = NODE_MASTER; // deve ser o array de nodes
+    sendJsonData["nodeToSend"] = NODE_MASTER;
     sendJsonData["nodeTime"] = mesh.getNodeTime();
     sendJsonData["timestamp"] = timestamp;
     sendJsonData["latitude"] = latitude;
@@ -226,26 +228,27 @@ void sendMessage(){
     }
     readSensors();
     serializeJson(sendJsonData, msg);
-    if(node_id == NODE_MASTER){
+    if(nodeOrigin == NODE_MASTER){
+        Serial.println("-------------------------------------------------------");
         Serial.println("------------> This endDevice (nodeMaster) <------------");
+        Serial.println("-------------------------------------------------------");
         Serial.println(msg);
+        Serial.println("-------------------------------------------------------");
         Serial.println("-------------------------------------------------------");
         if(meshSend){
             if(sendType == 3){
                 mesh.sendBroadcast(msg);
                 sendType = 1;
             }
-            if(sendType == 2 && j < sizeof(nodesList)){
-                returnSendSingle = mesh.sendSingle(nodesList[j],msg);
+            if(sendType == 2 && nodeToSend>99){
+                returnSendSingle = mesh.sendSingle(nodeToSend,msg);
                 if(returnSendSingle){
                     countTries = 0;
-                    j += 1;
                 }
                 else{
                     countTries += 1;
-                    if(countTries >= 5){
+                    if(countTries >= maxTries){
                         countTries = 0;
-                        j += 1;
                     }
                 }
             }
@@ -261,46 +264,28 @@ void readSerialData(){
         String jsonRec = Serial.readString();
         DynamicJsonDocument doc(1024);
         deserializeJson(doc, jsonRec);
-
         JsonObject docSerialRec = doc.as<JsonObject>();
-
         meshSend = docSerialRec["send"];
         sendType = docSerialRec["type"];
-        int t = docSerialRec["timestamp"];
-        T_sensor = docSerialRec["t_sensor"];
-        DateTime.setTime(t);
-
-        Serial.println("Received by SINK");
-        Serial.println(meshSend);
-        Serial.println(sendType);
-        Serial.println(t);
-        Serial.println(T_sensor);
-        Serial.println(jsonRec);
-
-        if(docSerialRec.containsKey("nodeslist") && sendType == 2){
-            j = 0;
-            uint32_t i = 0;
-            uint32_t l = docSerialRec["nodeslist"];
-
-// for(i=0;i<sizeof(l);++i){
-//     Serial.printf("%c \n",docSerialRec["nodeslist"][i]);
-// }
-
-            Serial.println("Received by SINK: if - 2");
-            Serial.println(jsonRec);
-            
-            for(i=0;i<sizeof(l);++i){
-                Serial.println(i);
-                nodesList[i] = l[&i];
-            }
-            if(!docSerialRec["pinDef"].isNull()){
-                uint8_t p = docSerialRec["pinDef"];
-                for(i=0;i<sizeof(p);++i){
-                    extPinDef[i] = p[&i];
+        if(docSerialRec.containsKey("timestamp")){
+            int t = docSerialRec["timestamp"];
+            DateTime.setTime(t);
+        }
+        if(docSerialRec.containsKey("nodeToSend") && !docSerialRec["nodeToSend"].isNull() && sendType == 2){
+            uint32_t n = docSerialRec["nodeToSend"];
+            nodeToSend = n;
+            if(docSerialRec.containsKey("pinDef")){
+                uint8_t *p = docSerialRec["pinDef"];
+                int s = sizeof(p)/sizeof(uint8_t);
+                for(int i=0;i<s;++i){
+                    extPinDef[i] = p[i];
                 }
             }
+            if(docSerialRec.containsKey("t_sensor")){
+                T_sensor = docSerialRec["t_sensor"];
+            }
         }
-        if(!docSerialRec["node_master"].isNull()){
+        if(docSerialRec.containsKey("node_master") && !docSerialRec["node_master"].isNull()){
             uint32_t node_master = docSerialRec["node_master"];
             NODE_MASTER = node_master;
             sendType = 3;
@@ -308,10 +293,10 @@ void readSerialData(){
         }
     }
     else{
-        if(NODE_MASTER != node_id){
+        if(NODE_MASTER != nodeOrigin){
             c += 1;
             if(c == 5000){
-                Serial.println(node_id);
+                Serial.println(nodeOrigin);
                 c = 0;
             }
         }
@@ -324,9 +309,8 @@ void setup(){
     DateTime.setTimeZone("America/Bahia");
     DateTime.begin(/* timeout param */);
     meshInit();
-    Serial.println(node_id);
-    int i = 0;
-    for(i = 0;i < PINS_NUM-1;++i){
+    Serial.println(nodeOrigin);
+    for(int i = 0;i < PINS_NUM-1;++i){
       if(pinDef[i].pinSet == true){
           uint8_t pin = pinDef[i].pinNum;
           pinMode(pin, INPUT);

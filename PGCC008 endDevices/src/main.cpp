@@ -19,9 +19,6 @@
     #define   MESH_PASSWORD     "atividade2"
     #define   MESH_PORT         5555
 
-// número de pinos definidos no array pinDef
-    #define   PINS_NUM          18
-
 // define os pinhos
     #define   ANALOG            A0
     #define   GPIO00            D3
@@ -41,6 +38,9 @@
     #define   GPIO14            D5
     #define   GPIO15            D8
     #define   GPIO16            D0
+
+// número de pinos definidos no array pinDef
+    #define   PINS_NUM          18
 
 // contagem de teste para impressao na tela
     int c = 0;
@@ -130,15 +130,20 @@
 // Functions
 // ----------------------------------------------------------------------------
 
+// Definição dos sensores em funcionamento
+void defSensors(int pins){
+    for(uint8_t i = 0;i < PINS_NUM-1;++i){
+        pinDef[i].pinSet = pins[&i];
+        Serial.println(pinDef[i].pinSet);
+    }
+}
+
 // Dispara quando uma mensagem é recebida
 void receivedCallback(uint32_t from, String &msg){
     DynamicJsonDocument receivedJson(1024);
     deserializeJson(receivedJson, msg);
     if(receivedJson.containsKey("pinDef")){
-        boolean *pins = receivedJson["pinDef"];
-        for(int i = 0;i < PINS_NUM-1;++i){
-            pinDef[i].pinSet = pins[i];
-        }
+        defSensors(receivedJson["pinDef"]);
     }
     if(receivedJson.containsKey("timestamp")){
         int t = receivedJson["timestamp"];
@@ -275,11 +280,7 @@ void readSerialData(){
             uint32_t n = docSerialRec["nodeToSend"];
             nodeToSend = n;
             if(docSerialRec.containsKey("pinDef")){
-                uint8_t *p = docSerialRec["pinDef"];
-                int s = sizeof(p)/sizeof(uint8_t);
-                for(int i=0;i<s;++i){
-                    extPinDef[i] = p[i];
-                }
+                defSensors(docSerialRec["pinDef"]);
             }
             if(docSerialRec.containsKey("t_sensor")){
                 T_sensor = docSerialRec["t_sensor"];

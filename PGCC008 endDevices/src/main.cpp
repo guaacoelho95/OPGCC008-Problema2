@@ -131,12 +131,25 @@
 // Functions
 // ----------------------------------------------------------------------------
 
-// Definição dos sensores em funcionamento
-void defSensors(int pins){
-    for(uint8_t i = 0;i < PINS_NUM-1;++i){
-        pinDef[i].pinSet = pins[&i];
-        Serial.println(pinDef[i].pinSet);
+// habilita os pinos recebidos por parâmetro
+void pinEnable(){
+    for(int i = 0;i < PINS_NUM-1;++i){
+      if(pinDef[i].pinSet == true){
+          uint8_t pin = pinDef[i].pinNum;
+          pinMode(pin, INPUT);
+      }
     }
+}
+
+// Recebe os parâmetros
+void pinParameters(){
+//void pinParameters(int* pins){
+    // for(int i = 0;i < PINS_NUM-1;++i){
+    //     int v = pins[i];
+    //     pinDef[i].pinSet = v;
+    //     pinEnable();
+    //     Serial.println(pinDef[i].pinSet);
+    // }
 }
 
 // Dispara quando uma mensagem é recebida
@@ -144,7 +157,8 @@ void receivedCallback(uint32_t from, String &msg){
     DynamicJsonDocument receivedJson(1024);
     deserializeJson(receivedJson, msg);
     if(receivedJson.containsKey("pinDef")){
-        defSensors(receivedJson["pinDef"]);
+        //int* ii = receivedJson["pinDef"];
+        //pinParameters(ii);
     }
     if(receivedJson.containsKey("timestamp")){
         int t = receivedJson["timestamp"];
@@ -287,6 +301,7 @@ void readSerialData(){
                 uint8_t v = docSerialRec["pinDef"][i];
                 extPinDef[i] = v;
             }
+            pinEnable();
         }
         if(docSerialRec.containsKey("t_sensor")){
             T_sensorSend = docSerialRec["t_sensor"];
@@ -307,7 +322,7 @@ void readSerialData(){
         if(NODE_MASTER != nodeOrigin){
             c += 1;
             if(c == 5000){
-                Serial.println(nodeOrigin);
+                Serial.printf("{\"id_master\":%u}",nodeOrigin);
                 c = 0;
             }
         }
@@ -320,13 +335,8 @@ void setup(){
     DateTime.setTimeZone("America/Bahia");
     DateTime.begin(/* timeout param */);
     meshInit();
-    Serial.println(nodeOrigin);
-    for(int i = 0;i < PINS_NUM-1;++i){
-      if(pinDef[i].pinSet == true){
-          uint8_t pin = pinDef[i].pinNum;
-          pinMode(pin, INPUT);
-      }
-    }
+    Serial.printf("{\"id_master\":%u}",nodeOrigin);
+    pinEnable();
 }
 
 // Loop

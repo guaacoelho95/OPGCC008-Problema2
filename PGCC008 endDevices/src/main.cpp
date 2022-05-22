@@ -40,7 +40,39 @@
     #define   GPIO16            D0
 
 // número de pinos definidos no array pinDef
-    #define   PINS_NUM          18
+    #define   PINS_NUM   18
+
+// Inicializa os sensores (Sink received parameter)
+    typedef struct {
+        uint8_t pinNum;
+        bool pinSet;
+    } pinInit_t;
+    pinInit_t pinDef[] {
+        {ANALOG, false},
+        {GPIO00, false},
+        {GPIO01, false},
+        {GPIO02, false},
+        {GPIO03, false},
+        {GPIO04, false},
+        {GPIO05, false},
+        {GPIO06, false},
+        {GPIO07, false},
+        {GPIO08, false},
+        {GPIO09, false},
+        {GPIO10, false},
+        {GPIO11, false},
+        {GPIO12, false},
+        {GPIO13, false},
+        {GPIO14, false},
+        {GPIO15, false},
+        {GPIO16, false}
+    };
+
+// Inicializa o array para definição dos pinos por sendMessage
+    boolean parsePinDef[PINS_NUM] = {0};
+
+// Inicializa o array de dados dos sensores
+    float pinData[PINS_NUM] = {0};
 
 // contagem de teste para impressao na tela
     int c = 0;
@@ -71,38 +103,6 @@
 
 // id do nodeMcu centralizador (Sink received parameter)
     uint32_t NODE_MASTER = 0;
-
-// Inicializa os sensores (Sink received parameter)
-    typedef struct {
-        uint8_t pinNum;
-        bool pinSet;
-    } pinInit_t;
-    pinInit_t pinDef[] {
-        {ANALOG, false},
-        {GPIO00, false},
-        {GPIO01, false},
-        {GPIO02, false},
-        {GPIO03, false},
-        {GPIO04, false},
-        {GPIO05, false},
-        {GPIO06, false},
-        {GPIO07, false},
-        {GPIO08, false},
-        {GPIO09, false},
-        {GPIO10, false},
-        {GPIO11, false},
-        {GPIO12, false},
-        {GPIO13, false},
-        {GPIO14, false},
-        {GPIO15, false},
-        {GPIO16, false}
-    };
-
-// Inicializa o array para definição dos pinos por sendMessage
-    boolean extPinDef[PINS_NUM] = {0};
-
-// Inicializa o array de dados dos sensores
-    float pinData[PINS_NUM] = {0};
 
 // Localização deste endDevice
     float latitude = -12.197422000000014;
@@ -249,7 +249,7 @@ void sendMessage(){
     if(nodeOrigin == NODE_MASTER){
         serializeJson(sendJsonData, msg);
         for(int i=0;i<PINS_NUM;++i){
-            sendJsonData["pinDef"][i] = extPinDef[i];
+            sendJsonData["pinDef"][i] = parsePinDef[i];
         }
         Serial.println("-----------------------------------------------------------------------");
         Serial.println("SENDED BY THIS endDevice (nodeMaster)");
@@ -314,7 +314,7 @@ void readSerialData(){
         if(docSerialRec.containsKey("pinDef")){
             for(int i=0;i<PINS_NUM;++i){
                 bool v = docSerialRec["pinDef"][i];
-                extPinDef[i] = v; // para sendMessage decidir se é interno ou externo
+                parsePinDef[i] = v; // para sendMessage decidir se é interno ou externo
             }
             if(nodeToSend == nodeOrigin){
                 pinEnable();

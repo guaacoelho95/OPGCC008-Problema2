@@ -18,6 +18,9 @@
     #define   MESH_PREFIX       "pgcc008"
     #define   MESH_PASSWORD     "atividade2"
     #define   MESH_PORT         5555
+    #define   WIFI_TYPE         WIFI_AP_STA
+    #define   WIFI_HIDE         1
+    // #define   TASK_SECOND       5
 
 // define os pinhos
     #define   ANALOG            A0
@@ -38,6 +41,25 @@
     #define   GPIO14            D5
     #define   GPIO15            D8
     #define   GPIO16            D0
+    
+    // #define   ANALOG            A0
+    // #define   GPIO00            D3
+    // #define   GPIO01            TX
+    // #define   GPIO02            D4
+    // #define   GPIO03            RX
+    // #define   GPIO04            D2
+    // #define   GPIO05            D1
+    // #define   GPIO06            SK  //unsed
+    // #define   GPIO07            S0  //unsed
+    // #define   GPIO08            S1  //unsed
+    // #define   GPIO09            S2  //unsed
+    // #define   GPIO10            S3  //unsed
+    // #define   GPIO11            SC  //unsed
+    // #define   GPIO12            D6  //unsed
+    // #define   GPIO13            D7
+    // #define   GPIO14            D5
+    // #define   GPIO15            D8
+    // #define   GPIO16            D0
 
 // número de pinos definidos no array pinDef
     #define   PINS_NUM   18
@@ -69,7 +91,7 @@
     };
 
 // Inicializa o array para definição dos pinos por sendMessage
-    boolean parsePinDef[PINS_NUM] = {0};
+    //boolean parsePinDef[PINS_NUM] = {0};
 
 // Inicializa o array de dados dos sensores
     float pinData[PINS_NUM] = {0};
@@ -109,8 +131,13 @@
     float longitude = -38.96674600000001;
   
 // Período de leitura de dados do sensor (Sink received parameter)
-    float T_sensor = 1;
-    float T_sensorSend = 0;
+    int T_send = 1;
+
+// Timestamp adjust
+    int timestamp = 0;
+
+// Mensagem a ser enviada
+    String msg;
 
 // Inicializa a rede mesh
     painlessMesh  mesh;
@@ -121,15 +148,24 @@
 // Define a function para envio de mensagens
     void sendMessage();
 
-// inicializa o json
-    DynamicJsonDocument sendJsonData(1024);
-
 // Define a tarefa de enviar mensagens e o tempo
-    Task taskSendMessage(TASK_SECOND*T_sensor,TASK_FOREVER,&sendMessage);
+    Task taskSendMessage( TASK_SECOND*T_send, TASK_FOREVER, &sendMessage );
 
 // ----------------------------------------------------------------------------
 // Functions
 // ----------------------------------------------------------------------------
+
+void timestampAdjust(int t){
+    timestamp = t;
+    DateTime.setTime(timestamp);
+    Serial.printf("MESH Timestamp received: %d\n",timestamp);
+}
+
+// atualiza o tempo de envio das mensagens
+void sendTimeAdjust(){    
+    taskSendMessage.setInterval(TASK_SECOND*T_send);
+    Serial.printf("T_send adjusted to %d seconds.\n",T_send);
+}
 
 // habilita os pinos recebidos por parâmetro
 void pinEnable(){
@@ -137,47 +173,65 @@ void pinEnable(){
         uint8_t pin = pinDef[i].pinNum;
         if(pinDef[i].pinSet == true){
             pinMode(pin, INPUT);
-            Serial.printf("Pin %d Enabled\n",pin);
+            Serial.printf("Pin %d input mode defined.\n",pin);
         }
         else{
-            Serial.printf("Pin %d Disabled\n",pin);
+            Serial.printf("Pin %d don't used.\n",pin);
+        }
+    }
+}
+
+// testa se a chave json existe e atribui à respectiva variável global
+void getJsonData(String data){
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, data);
+    JsonObject receivedJsonData = doc.as<JsonObject>();
+
+    if(receivedJsonData.containsKey("nodeToSend") && sendType == 2){
+        uint32_t n = receivedJsonData["nodeToSend"];
+        nodeToSend = n;
+    }
+    
+    if(nodeOrigin == nodeToSend){
+        if(receivedJsonData.containsKey("send")){
+            meshSend = receivedJsonData["send"];
+        }
+        if(receivedJsonData.containsKey("type")){
+            sendType = receivedJsonData["type"];
+        }
+        if(receivedJsonData.containsKey("timestamp")){
+            timestampAdjust(receivedJsonData["timestamp"]);
+        }
+        if(receivedJsonData.containsKey("t_send")){
+            T_send = receivedJsonData["t_send"];
+            sendTimeAdjust();
+        }
+        if(receivedJsonData.containsKey("pinDef")){
+            if(nodeToSend == nodeOrigin){
+                for(int i=0;i<PINS_NUM;++i){
+                    bool v = receivedJsonData["pinDef"][i];
+                    // parsePinDef[i] = v; // verificar essa variavel e a abaixo
+                    pinDef[i].pinSet = v;
+                    Serial.printf("%d\n",pinDef[i].pinSet);
+                }
+                pinEnable();
+            }
+        }
+        if(receivedJsonData.containsKey("node_master") && !receivedJsonData["node_master"].isNull()){
+            uint32_t node_master = receivedJsonData["node_master"];
+            sendType = 3; // verificar esta ordem de envio, não deve enviar em todos os casos
+            meshSend = true;
+            NODE_MASTER = node_master;
+            if(nodeOrigin == NODE_MASTER){
+                Serial.println("I am a node master.\n");
+            }
         }
     }
 }
 
 // Dispara quando uma mensagem é recebida
 void receivedCallback(uint32_t from, String &msg){
-    DynamicJsonDocument receivedJson(1024);
-    deserializeJson(receivedJson, msg);
-    if(receivedJson.containsKey("nodeToSend") && sendType == 2){
-        uint32_t n = receivedJson["nodeToSend"];
-        nodeToSend = n;
-    }
-    if(receivedJson.containsKey("pinDef")){
-        for(int i = 0;i < PINS_NUM-1;++i){
-            bool v = receivedJson["pinDef"][i];
-            pinDef[i].pinSet = v;
-            Serial.printf("%d\n",pinDef[i].pinSet);
-        }
-        if(nodeToSend != nodeOrigin){
-            pinEnable();
-        }
-    }
-    if(receivedJson.containsKey("timestamp")){
-        int t = receivedJson["timestamp"];
-        DateTime.setTime(t);
-        Serial.printf("MESH Timestamp received: %d",t);
-    }
-    if(receivedJson.containsKey("t_sensor")){
-        T_sensor = receivedJson["t_sensor"];
-        Serial.printf("MESH Time msg received: %6.2f\n",T_sensor);
-    }
-    if(receivedJson.containsKey("node_master")){
-        NODE_MASTER = receivedJson["node_master"];
-        if(nodeOrigin == NODE_MASTER){
-            Serial.println("MESH "+msg);
-        }
-    }
+    getJsonData(msg);
 }
 
 // Inicializa a conexão da rede mesh
@@ -198,7 +252,7 @@ void nodeTimeAdjustedCallback(int32_t offset){
 // inicialização da mesh
 void meshInit(){
     mesh.setDebugMsgTypes( ERROR | STARTUP );
-    mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
+    mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT,WIFI_TYPE,WIFI_HIDE);
     mesh.onReceive(&receivedCallback);
     mesh.onNewConnection(&newConnectionCallback);
     mesh.onChangedConnections(&changedConnectionCallback);
@@ -224,6 +278,22 @@ void readSensors(){
             pinData[i] = 0;
       }
     }
+}
+
+// Função de envio de mensagens
+void sendMessage(){
+    DynamicJsonDocument sendJsonData(1024);
+    sendJsonData["device"] = nodeOrigin;
+    sendJsonData["node_master"] = NODE_MASTER;
+    sendJsonData["nodeToSend"] = NODE_MASTER;
+    sendJsonData["nodeTime"] = mesh.getNodeTime();
+    sendJsonData["timestamp"] = timestamp;
+    sendJsonData["latitude"] = latitude;
+    sendJsonData["longitude"] = longitude;
+    for(int i=0;i<PINS_NUM;++i){
+        sendJsonData["pinDef"][i] = pinDef[i].pinSet;
+    }
+    readSensors();
     for(int i=0;i<PINS_NUM-1;++i){
         if(pinDef[i].pinSet == true){
             sendJsonData["data"][i] = pinData[i];
@@ -232,29 +302,10 @@ void readSensors(){
             sendJsonData["data"][i] = 0;
         }
     }
-}
-
-// Função de envio de mensagens
-void sendMessage(){
-    String msg = "";
-    int timestamp = DateTime.now();
-    sendJsonData["device"] = nodeOrigin;
-    sendJsonData["node_master"] = NODE_MASTER;
-    sendJsonData["nodeToSend"] = NODE_MASTER;
-    sendJsonData["nodeTime"] = mesh.getNodeTime();
-    sendJsonData["timestamp"] = timestamp;
-    sendJsonData["latitude"] = latitude;
-    sendJsonData["longitude"] = longitude;
-    readSensors();
     if(nodeOrigin == NODE_MASTER){
+    // se eu sou o node_master, envie minhas mensagens pela serial
+    // se a mensagem que eu recebi pela serial não é minha, apenas reenvie   
         serializeJson(sendJsonData, msg);
-        for(int i=0;i<PINS_NUM;++i){
-            sendJsonData["pinDef"][i] = parsePinDef[i];
-        }
-        Serial.println("-----------------------------------------------------------------------");
-        Serial.println("SENDED BY THIS endDevice (nodeMaster)");
-        Serial.println("-----------------------------------------------------------------------");
-        Serial.println(msg);
         if(meshSend){
             if(sendType == 3){
                 mesh.sendBroadcast(msg);
@@ -287,45 +338,9 @@ void sendMessage(){
 void readSerialData(){
     if(Serial.available() > 0) {
         String jsonRec = Serial.readString();
-        DynamicJsonDocument doc(1024);
-        deserializeJson(doc, jsonRec);
-        JsonObject docSerialRec = doc.as<JsonObject>();
-        meshSend = docSerialRec["send"];
-        sendType = docSerialRec["type"];
-
-        // ver a possibilidade abaixo
-        // if nodeToSend == nodeOrigin
-        //      receba os parâmetros e atribua às variáveis deste node
-        // else
-        //      envie para o json de sendMessage()
-        // 
-        if(docSerialRec.containsKey("timestamp")){
-            int t = docSerialRec["timestamp"]; // para global
-            DateTime.setTime(t); // para function sendMessage decidir se é interno ou externo
-        }
-        if(docSerialRec.containsKey("t_sensor")){
-            T_sensorSend = docSerialRec["t_sensor"]; // para global e trocar para T_sensor
-            Serial.printf("SERIAL T_sensor: %6.2f\n",T_sensor);
-        }
-        if(docSerialRec.containsKey("nodeToSend") && sendType == 2){
-            uint32_t n = docSerialRec["nodeToSend"]; // para global
-            nodeToSend = n;
-        }
-        if(docSerialRec.containsKey("pinDef")){
-            for(int i=0;i<PINS_NUM;++i){
-                bool v = docSerialRec["pinDef"][i];
-                parsePinDef[i] = v; // para sendMessage decidir se é interno ou externo
-            }
-            if(nodeToSend == nodeOrigin){
-                pinEnable();
-            }
-        }
-        if(docSerialRec.containsKey("node_master") && !docSerialRec["node_master"].isNull()){
-            uint32_t node_master = docSerialRec["node_master"];
-            NODE_MASTER = node_master;
-            sendType = 3;
-            meshSend = true;
-        }
+        getJsonData(jsonRec);
+        // se a mensagem foi para mim, leia os parâmetros e aplique
+        // se a mensagem foi para outro node, apenas retransmita a string
     }
     else{
         if(NODE_MASTER != nodeOrigin){
@@ -343,6 +358,7 @@ void setup(){
     Serial.begin(115200);
     DateTime.setTimeZone("America/Bahia");
     DateTime.begin(/* timeout param */);
+    timestamp = DateTime.now();
     meshInit();
     Serial.printf("{\"id_node\":%u}",nodeOrigin);
     pinEnable();

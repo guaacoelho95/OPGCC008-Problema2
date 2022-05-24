@@ -139,7 +139,8 @@
     int timestamp = 0;
 
 // Mensagem a ser enviada
-    char meshMsg[1024];
+    //char meshMsg[1024];
+    String meshMsg;
 
 // Mensagem a ser repassada pelo node master
     String meshExternalMsg;
@@ -361,6 +362,7 @@ void sendMeshMessage(){
                         }
                     }
                 }
+                meshExternalMsg = "";
                 meshSend = false;
                 sendType = 1;
             }
@@ -368,9 +370,10 @@ void sendMeshMessage(){
     }
     else{
         //Serial.printf("\nDEBUG sendMeshMessage() else meshMsg: %s\n",meshMsg); // debug
-        if(strlen(meshMsg) > 0){
+        if(strlen(meshMsg.c_str()) > 0){
             //Serial.printf("\nDEBUG sendMeshMessage() if len(meshMsg): %u\n",strlen(meshMsg)); // debug
             mesh.sendSingle(NODE_MASTER, meshMsg);
+            meshMsg = "";
         }
     }
 }

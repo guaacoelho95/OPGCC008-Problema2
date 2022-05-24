@@ -139,8 +139,8 @@
     int timestamp = 0;
 
 // Mensagem a ser enviada
-    //char meshMsg[1024];
-    String meshMsg;
+    char meshMsg[1024];
+    //String meshMsg; // falhando, retorna null
 
 // Mensagem a ser repassada pelo node master
     String meshExternalMsg;

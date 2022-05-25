@@ -14,7 +14,11 @@
     #include <ESPDateTime.h>
     #include <painlessMesh.h>
     #include <string.h>
-    
+    #include <bits/stdc++.h>
+
+ // Define name space   
+    using namespace std;
+
 // Parâmetros da rede mesh
     #define   MESH_PREFIX       "pgcc008"
     #define   MESH_PASSWORD     "atividade2"
@@ -101,14 +105,10 @@
     uint8_t sendType  = 3;
 
 // list of nodes to send msg
-    uint32_t nodeToSend;
+    uint32_t nodeDestiny;
 
 // this node id
     uint32_t nodeOrigin = 0;
-
-// node list
-    //String nodelist;
-    SimpleList<uint32_t> nodeList;
 
 // node id to sendSingle
     uint32_t nodeDestination = 0;
@@ -123,7 +123,8 @@
     int countTries = 0;
 
 // Se true, envia msg do sink recebida pela serial para a mesh
-    boolean meshSend = false;
+    //boolean meshSend = false;
+    bool meshSend = false;
 
 // id do nodeMcu centralizador (Sink received parameter)
     uint32_t NODE_MASTER = 0;
@@ -146,7 +147,7 @@
     String meshExternalMsg;
 
 // Mensagem a ser convertida em object json
-    String data;
+    //String receivedMsg;
 
 // Inicializa a rede mesh
     painlessMesh  mesh;
@@ -155,10 +156,10 @@
     Scheduler userScheduler;
 
 // Define a function para envio de mensagens
-    void sendMeshMessage();
+    void sendMessage();
 
 // Define a tarefa de enviar mensagens e o tempo
-    Task taskSendMessage( TASK_SECOND*T_send, TASK_FOREVER, &sendMeshMessage );
+    Task taskSendMessage( TASK_SECOND*T_send, TASK_FOREVER, &sendMessage );
 
 // ----------------------------------------------------------------------------
 // Functions
@@ -175,7 +176,7 @@ void timestampAdjust(int t){
 void sendTimeAdjust(){    
     taskSendMessage.setInterval(TASK_SECOND*T_send);
     taskSendMessage.enable();
-    Serial.printf("\nDEBUG sendTimeAdjust() T_send adjusted to %d seconds.\n",T_send); // debug
+    //Serial.printf("\nDEBUG sendTimeAdjust() T_send adjusted to %d seconds.\n",T_send); // debug
 }
 
 // habilita os pinos recebidos por parâmetro
@@ -184,47 +185,47 @@ void pinEnable(){
         uint8_t pin = pinDef[i].pinNum;
         if(pinDef[i].pinSet == true){
             pinMode(pin, INPUT);
-            Serial.printf("\nDEBUG Pin %d input mode defined.\n",pin); // debug
+            //Serial.printf("\nDEBUG Pin %d input mode defined.\n",pin); // debug
         }
         else{
-            Serial.printf("\nDEBUG Pin %d don't used.\n",pin); // debug
+            //Serial.printf("\nDEBUG Pin %d don't used.\n",pin); // debug
         }
     }
 }
 
 // testa se a chave json existe e atribui à respectiva variável global
-void getJsonData(){    
-    //Serial.printf("\nDEBUG getJsonData() n: %s.......\n",data.c_str()); // debug
+bool getParameters(String toGet){    
+    //Serial.printf("\nDEBUG getParameters() n: %s.......\n",toGet.c_str()); // debug
     DynamicJsonDocument doc(1024);
-    deserializeJson(doc, data);
+    deserializeJson(doc, toGet);
     JsonObject receivedJsonData = doc.as<JsonObject>();
-    if(receivedJsonData.containsKey("nodeToSend")){
-        uint32_t n = receivedJsonData["nodeToSend"];
-        nodeToSend = n;
-        //Serial.printf("\nDEBUG getJsonData() nodeToSend: %u.......\n",nodeToSend); // debug
-        //Serial.printf("\nDEBUG getJsonData() n: %u.......\n",n); // debug
+    if(receivedJsonData.containsKey("nodeDestiny")){
+        uint32_t n = receivedJsonData["nodeDestiny"];
+        nodeDestiny = n;
+        //Serial.printf("\nDEBUG getParameters() nodeDestiny: %u.......\n",nodeDestiny); // debug
+        //Serial.printf("\nDEBUG getParameters() n: %u.......\n",n); // debug
     }
-    if(nodeOrigin == nodeToSend){
+    if(nodeOrigin == nodeDestiny){
         if(receivedJsonData.containsKey("send")){
             meshSend = receivedJsonData["send"];
-            //Serial.printf("\nDEBUG getJsonData() send/meshSend: %d.......\n",meshSend); // debug
+            //Serial.printf("\nDEBUG getParameters() send/meshSend: %d.......\n",meshSend); // debug
         }
         if(receivedJsonData.containsKey("type")){
             sendType = receivedJsonData["type"];
-            //Serial.printf("\nDEBUG getJsonData() type/sendType: %d.......\n",sendType); // debug
+            //Serial.printf("\nDEBUG getParameters() type/sendType: %d.......\n",sendType); // debug
         }
         if(receivedJsonData.containsKey("timestamp")){
             unsigned long t = receivedJsonData["timestamp"];
-            //Serial.printf("\nDEBUG getJsonData() timestamp: %lu.......\n",t); // debug
+            //Serial.printf("\nDEBUG getParameters() timestamp: %lu.......\n",t); // debug
             timestampAdjust(t);
         }
         if(receivedJsonData.containsKey("t_send")){
             T_send = receivedJsonData["t_send"];
-            Serial.printf("\nDEBUG getJsonData() t_send/T_send: %d.......\n",T_send); // debug
+            //Serial.printf("\nDEBUG getParameters() t_send/T_send: %d.......\n",T_send); // debug
             sendTimeAdjust();
         }
         if(receivedJsonData.containsKey("pinDef")){
-            if(nodeToSend == nodeOrigin){
+            if(nodeDestiny == nodeOrigin){
                 for(int i=0;i<PINS_NUM;++i){
                     bool v = receivedJsonData["pinDef"][i];
                     pinDef[i].pinSet = v;
@@ -240,6 +241,10 @@ void getJsonData(){
             NODE_MASTER = node_master;
             //Serial.printf("\nDEBUG New node master id: %u.......\n",node_master); // debug
         }
+        return true;
+    }
+    else{
+        return false;
     }
 }
 
@@ -247,15 +252,20 @@ void getJsonData(){
 void receivedCallback(uint32_t from, String &msg){
     //Serial.printf("\nDEBUG RECEIVED from %u meshMsg=%s\n", from, msg.c_str()); // debug
     //Serial.printf("\nDEBUG RECEIVED receivedCallback() %s\n: ",msg.c_str()); // debug
-    data = msg.c_str();
-    getJsonData();
+    // receivedMsg = msg.c_str();
+    //receivedMsg = msg;
     if(nodeOrigin == NODE_MASTER){
-        //Serial.printf("\nDEBUG RECEIVED if_1 %s\n",msg.c_str());
+        //Serial.printf("\nDEBUG RECEIVED if_1 %s\n",msg.c_str()); \\ debug
         Serial.println(msg);
     }
-    // if(nodeOrigin == nodeToSend){
+    else{
+        Serial.println(msg); // debug
+        //Serial.println(receivedMsg); // debug
+        getParameters(msg.c_str());
+    }
+    // if(nodeOrigin == nodeDestiny){
     //     //Serial.printf("\nDEBUG RECEIVED  if_2 receivedCallback() %s\n: ",msg.c_str()); // debug
-    //     getJsonData();
+    //     getParameters();
     // }
 }
 
@@ -287,7 +297,6 @@ void meshInit(){
     userScheduler.addTask( taskSendMessage );
     taskSendMessage.enable();
     nodeOrigin = mesh.getNodeId();
-    nodeList = mesh.getNodeList();
 }
 
 // Leitura dos sensores
@@ -308,12 +317,12 @@ void readSensors(){
     }
 }
 
-// Função de envio de mensagens
-void sendMeshMessage(){
+// passagem dos dados para json
+void jsonParse(){
     DynamicJsonDocument sendJsonData(1024);
     sendJsonData["device"] = nodeOrigin;
     sendJsonData["node_master"] = NODE_MASTER;
-    sendJsonData["nodeToSend"] = NODE_MASTER;
+    sendJsonData["nodeDestiny"] = NODE_MASTER;
     sendJsonData["nodeTime"] = mesh.getNodeTime();
     sendJsonData["timestamp"] = timestamp;
     sendJsonData["latitude"] = latitude;
@@ -329,29 +338,39 @@ void sendMeshMessage(){
         else{
             sendJsonData["data"][i] = 0;
         }
-    }
-    
+    }    
     serializeJson(sendJsonData, meshMsg);
-    //Serial.printf("\nDEBUG sendMeshMessage() meshMsg: %s\n",meshMsg); // debug
+}
+
+// Função de envio de mensagens
+void sendMessage(){
+    jsonParse();
+    //Serial.printf("\nDEBUG sendMessage() meshMsg: %s\n",meshMsg); // debug
+
+// a mensagem do node master para a serial deve ser aqui para controle de tempo de envio
+// dividir a function de envio de msgs, sendMeshMsg()?
+// 	sendMessage() -> cria o json e envia para a mesh ou serial
+// 	 |----- sendMesh() se eu!=node_master | eu!=nodeDestiny (OU: se a msg não for para mim, eu!=nodeDestiny)
+// 	 |----- sendSerial() se eu for o node_master e a mensagem não for para outro node, eu==nodeDestiny
 
     if(nodeOrigin == NODE_MASTER){
-        //Serial.printf("\nDEBUG sendMeshMessage() if meshMsg: %s\n",meshMsg); // debug
-        if(nodeOrigin == nodeToSend){
-            if(sendType == 1){
+        //Serial.printf("\nDEBUG sendMessage() if meshMsg: %s\n",meshMsg); // debug
+        if(nodeDestiny == NODE_MASTER){
+            // if(sendType == 1){
                 Serial.println(meshMsg);
-            }
+            // }
         }
         else{
             if(meshSend){
                 if(sendType == 3){
-                    //Serial.printf("\nDEBUG sendMeshMessage() BROADCAST\n"); // debug
+                    //Serial.printf("\nDEBUG sendMessage() BROADCAST\n"); // debug
                     mesh.sendBroadcast(meshExternalMsg);
                 }
-                int len = nodeToSend?0:1;
-                while (nodeToSend) {len++; nodeToSend/=10;}
+                int len = nodeDestiny?0:1;
+                while (nodeDestiny) {len++; nodeDestiny/=10;}
                 if(sendType == 2 && len == 10){
-                    //Serial.printf("\nDEBUG sendMeshMessage() SINGLE\n"); // debug
-                    returnSendSingle = mesh.sendSingle(nodeToSend,meshExternalMsg);
+                    //Serial.printf("\nDEBUG sendMessage() SINGLE\n"); // debug
+                    returnSendSingle = mesh.sendSingle(nodeDestiny,meshExternalMsg);
                     if(returnSendSingle){
                         countTries = 0;
                     }
@@ -369,60 +388,75 @@ void sendMeshMessage(){
         }
     }
     else{
-        //Serial.printf("\nDEBUG sendMeshMessage() else meshMsg: %s\n",meshMsg); // debug
-        if(strlen(meshMsg.c_str()) > 0){
-            //Serial.printf("\nDEBUG sendMeshMessage() if len(meshMsg): %u\n",strlen(meshMsg)); // debug
+        //Serial.printf("\nDEBUG sendMessage() else meshMsg: %s\n",meshMsg); // debug
+        //Serial.printf("\nDEBUG sendMessage() else len(meshMsg): %u\n",strlen(meshMsg)); // debug
+        if(strlen(meshMsg) > 0){
             mesh.sendSingle(NODE_MASTER, meshMsg);
-            meshMsg = "";
         }
     }
 }
 
+// envia as mensagens recebidas e formuladas para a serial (Sink) - apenas para node master
+void sendSerial(){
+    if(NODE_MASTER != nodeOrigin){
+        if(c == 5000){
+            String firstMsg = "";
+            firstMsg += "{";
+            firstMsg += "\"id_node\":";
+            firstMsg += nodeOrigin;
+            firstMsg += ",\"nodeList\":[";
+            int i = 0;
+            std::list<uint32_t> nodeList = mesh.getNodeList();
+            std::list<uint32_t>::iterator node = nodeList.begin();
+            while (node != nodeList.end()){
+                firstMsg += *node;
+                firstMsg += i>0?",":"";
+                node++;
+                i++;
+            }
+            firstMsg += "]}";
+            Serial.println(firstMsg);
+            c = 0;
+        }
+        c += 1;
+    }
+    else{
+        // se for master, envie os dados recebidos da mesh e os meus
+        //Serial.println("ELSE sendSerial: se for master, envie os dados recebidos da mesh e os meus");
+    }
+}
+
 // lê a serial - apenas para node master
-void readSerialData(){
+void readSerial(){
     if(Serial.available() > 0) {
         String jsonRec = Serial.readString();
-        DynamicJsonDocument doc(1024);
-        deserializeJson(doc, jsonRec);
-        JsonObject receivedJsonData = doc.as<JsonObject>();
+        // DynamicJsonDocument doc(1024);
+        // deserializeJson(doc, jsonRec);
+        // JsonObject receivedJsonData = doc.as<JsonObject>();
         
-        //Serial.println("\nDEBUG readSerialData() jsonRec: "+jsonRec); // debug
+        //Serial.println("\nDEBUG readSerial() jsonRec: "+jsonRec); // debug
         
-        if(receivedJsonData.containsKey("nodeToSend")){
-            uint32_t n = receivedJsonData["nodeToSend"];
+        // if(receivedJsonData.containsKey("nodeDestiny")){
+        //     nodeDestiny = receivedJsonData["nodeDestiny"];
+            //uint32_t n = receivedJsonData["nodeDestiny"];
+            //nodeDestiny = n;
 
             //Serial.println(n); // debug
             //Serial.println(nodeOrigin); // debug
-            //Serial.printf("\nDEBUG readSerialData() n: %u\n",n); // debug
-            //Serial.printf("\nDEBUG readSerialData() nodeOrigin: %u\n",nodeOrigin); // debug
+            //Serial.printf("\nDEBUG readSerial() n: %u\n",n); // debug
+            //Serial.printf("\nDEBUG readSerial() nodeOrigin: %u\n",nodeOrigin); // debug
 
-            if(n == nodeOrigin){
-                //Serial.printf("\nDEBUG readSerialData() if: %u == %u, n: %u, nodeOrigin: %u\n",n,nodeOrigin,sizeof(n),sizeof(nodeOrigin)); // debug
-                data = jsonRec;
-                getJsonData();
+            //if(nodeDestiny == nodeOrigin){
+            if(getParameters(jsonRec)){
+                //Serial.printf("\nDEBUG readSerial() if: %u == %u, n: %u, nodeOrigin: %u\n",n,nodeOrigin,sizeof(n),sizeof(nodeOrigin)); // debug
+                //receivedMsg = jsonRec;
+                //getParameters();
             }
             else{
                 meshExternalMsg = jsonRec;
-                //Serial.printf("\nDEBUG readSerialData() meshMsg: %s,",meshMsg); // debug
+                //Serial.printf("\nDEBUG readSerial() meshMsg: %s,",meshMsg); // debug
             }
-        }
-    }
-    else{
-        if(NODE_MASTER != nodeOrigin){
-            c += 1;
-            if(c == 5000){
-                //Serial.printf("\nNum nodes: %d\n", nodeList.size());
-                //Serial.printf("\nConnection list:");
-                SimpleList<uint32_t>::iterator node = nodeList.begin();
-                while (node != nodeList.end()){
-                    //Serial.printf(" %u", *node);
-                    node++;
-                }
-                //Serial.printf("\n");
-                Serial.printf("{\"id_node\":%u}",nodeOrigin);
-                c = 0;
-            }
-        }
+        //}
     }
 }
 
@@ -433,12 +467,13 @@ void setup(){
     DateTime.begin(/* timeout param */);
     timestamp = DateTime.now();
     meshInit();
-    Serial.printf("{\"id_node\":%u}",nodeOrigin);
     pinEnable();
+    //Serial.printf("{\"id_node\":%u}",nodeOrigin);
 }
 
 // Loop
 void loop(){
     mesh.update();
-    readSerialData();
+    readSerial();
+    sendSerial();
 }

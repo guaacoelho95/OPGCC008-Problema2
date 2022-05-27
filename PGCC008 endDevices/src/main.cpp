@@ -136,7 +136,8 @@
     int T_send = 1;
 
 // Timestamp adjust
-    int timestamp = 0;
+    unsigned long timestamp = 0;
+    unsigned long adjusterTime = 0;
 
 // Mensagem a ser enviada
     char meshMsg[1024];
@@ -162,8 +163,9 @@
 
 // atualiza o timestamp deste node
 void timestampAdjust(int t){
+    adjusterTime = millis();
     timestamp = t;
-    DateTime.setTime(timestamp);
+    //DateTime.setTime(timestamp);
 }
 
 // atualiza o tempo de envio das mensagens
@@ -191,12 +193,13 @@ bool getParameters(String toGet){
         uint32_t n = receivedJsonData["nodeDestiny"];
         nodeDestiny = n;
     }
-    if(nodeOrigin == nodeDestiny){
+    if(receivedJsonData.containsKey("type")){
+        sendType = receivedJsonData["type"];
+    }
+    Serial.println(sendType); // debug
+    if(nodeOrigin == nodeDestiny or sendType==3){
         if(receivedJsonData.containsKey("send")){
             meshSend = receivedJsonData["send"];
-        }
-        if(receivedJsonData.containsKey("type")){
-            sendType = receivedJsonData["type"];
         }
         if(receivedJsonData.containsKey("timestamp")){
             unsigned long t = receivedJsonData["timestamp"];
@@ -221,7 +224,12 @@ bool getParameters(String toGet){
             meshSend = true;
             NODE_MASTER = node_master;
         }
-        return true;
+        if(sendType==3){
+            return false;
+        }
+        else{
+            return true;
+        }
     }
     else{
         return false;
@@ -294,7 +302,7 @@ void jsonParse(){
     sendJsonData["node_master"] = NODE_MASTER;
     sendJsonData["nodeDestiny"] = NODE_MASTER;
     sendJsonData["nodeTime"] = mesh.getNodeTime();
-    sendJsonData["timestamp"] = timestamp;
+    sendJsonData["timestamp"] = timestamp+((millis()-adjusterTime)/1000); // DateTime.now(); // 
     sendJsonData["latitude"] = latitude;
     sendJsonData["longitude"] = longitude;
     for(int i=0;i<PINS_NUM;++i){
@@ -321,7 +329,11 @@ void sendMessage(){
         }
         else{
             if(meshSend){
+                
+                Serial.printf("sendMessage() if meshSend:......... %d",meshSend); // debug
+
                 if(sendType == 3){
+                    Serial.println("sendMessage() broadcast:......... \n"+meshExternalMsg); // debug
                     mesh.sendBroadcast(meshExternalMsg);
                 }
                 int len = nodeDestiny?0:1;
@@ -338,9 +350,9 @@ void sendMessage(){
                         }
                     }
                 }
-                //meshExternalMsg = "";
                 meshSend = false;
                 sendType = 1;
+                nodeDestiny = NODE_MASTER;
             }
         }
     }
@@ -398,8 +410,7 @@ void readSerial(){
 void setup(){
     Serial.begin(115200);
     DateTime.setTimeZone("America/Bahia");
-    DateTime.begin(/* timeout param */);
-    timestamp = DateTime.now();
+    DateTime.begin(/* timeout param */);    
     meshInit();
     pinEnable();
 }

@@ -36,6 +36,8 @@ from datetime import datetime
 n_nodes = 4
 tabela_pinos = np.zeros([n_nodes, 18])
 
+
+node_list = [4208803281, 4208793911, 4208790561,4208779354]
 # Mapa que relacione um index com o valor do id de um nó (id definido pela rede mesh)
 
 

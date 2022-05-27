@@ -7,6 +7,9 @@ import serial
 import time
 
 
+
+#{"id_node":4208803281,"nodeList":[4208793911, 4208790561,4208779354,]}
+
 pin_temperatura = 1
 pin_humidade = 3
 pin_chama = 5

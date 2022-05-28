@@ -184,7 +184,7 @@ void pinEnable(){
     }
 }
 
-// testa se a chave json existe e atribui à respectiva variável global
+// testa se a chave json existe e atribui à respectiva variável global se o nó for destino
 bool getParameters(String toGet){
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, toGet);
@@ -196,7 +196,6 @@ bool getParameters(String toGet){
     if(receivedJsonData.containsKey("type")){
         sendType = receivedJsonData["type"];
     }
-    Serial.println(sendType); // debug
     if(nodeOrigin == nodeDestiny or sendType==3){
         if(receivedJsonData.containsKey("send")){
             meshSend = receivedJsonData["send"];
@@ -242,7 +241,6 @@ void receivedCallback(uint32_t from, String &msg){
         Serial.println(msg);
     }
     else{
-        //Serial.println(msg); // debug
         getParameters(msg.c_str());
     }
 }
@@ -323,22 +321,23 @@ void jsonParse(){
 // Função de envio de mensagens
 void sendMessage(){
     jsonParse();
-    if(nodeOrigin == NODE_MASTER){
-        if(nodeDestiny == NODE_MASTER){
-            Serial.println(meshMsg);
-        }
-        else{
-            if(meshSend){
-                
-                Serial.printf("sendMessage() if meshSend:......... %d",meshSend); // debug
+    char str[10];
+    sprintf( str, "%u", nodeDestiny);
+    int len = strlen(str);
+    
+    // Serial.println("nodeDestiny: "+nodeDestiny);
+    // Serial.printf("nodeDestiny len: %d\n",len);
+    // Serial.printf("nodeDestiny str: %s\n",str);
 
+    if(nodeOrigin == NODE_MASTER){
+            if(meshSend){
+                // Serial.printf("sendMessage() if meshSend==true:......... %d",meshSend); // debug
                 if(sendType == 3){
-                    Serial.println("sendMessage() broadcast:......... \n"+meshExternalMsg); // debug
+                    // Serial.println("sendMessage() broadcast if sendType==3: "+meshExternalMsg); // debug
                     mesh.sendBroadcast(meshExternalMsg);
                 }
-                int len = nodeDestiny?0:1;
-                while (nodeDestiny) {len++; nodeDestiny/=10;}
-                if(sendType == 2 && len == 10){
+                else if(sendType == 2 && len == 10){
+                    // Serial.println("sendMessage() single if sendType==2:......... \n"+meshExternalMsg); // debug
                     returnSendSingle = mesh.sendSingle(nodeDestiny,meshExternalMsg);
                     if(returnSendSingle){
                         countTries = 0;
@@ -354,7 +353,9 @@ void sendMessage(){
                 sendType = 1;
                 nodeDestiny = NODE_MASTER;
             }
-        }
+            else{
+                Serial.println(meshMsg);
+            }
     }
     else{
         if(strlen(meshMsg) > 0){
@@ -377,7 +378,7 @@ void sendSerial(){
             std::list<uint32_t>::iterator node = nodeList.begin();
             while (node != nodeList.end()){
                 firstMsg += *node;
-                firstMsg += i>0?",":"";
+                firstMsg += i>=0?",":"";
                 node++;
                 i++;
             }

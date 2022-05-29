@@ -196,10 +196,10 @@ bool getParameters(String toGet){
     if(receivedJsonData.containsKey("type")){
         sendType = receivedJsonData["type"];
     }
+    if(receivedJsonData.containsKey("send")){
+        meshSend = receivedJsonData["send"];
+    }
     if(nodeOrigin == nodeDestiny or sendType==3){
-        if(receivedJsonData.containsKey("send")){
-            meshSend = receivedJsonData["send"];
-        }
         if(receivedJsonData.containsKey("timestamp")){
             unsigned long t = receivedJsonData["timestamp"];
             timestampAdjust(t);
@@ -263,9 +263,7 @@ void nodeTimeAdjustedCallback(int32_t offset){
 // inicialização da mesh
 void meshInit(){
     mesh.setDebugMsgTypes( ERROR | STARTUP );
-    //mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT,WIFI_TYPE,WIFI_CHANNEL,WIFI_HIDE);
-    //mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT,WIFI_AP_STA,1,1);
-    mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
+    mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT,WIFI_TYPE,WIFI_CHANNEL,WIFI_HIDE);
     mesh.onReceive(&receivedCallback);
     mesh.onNewConnection(&newConnectionCallback);
     mesh.onChangedConnections(&changedConnectionCallback);
@@ -321,33 +319,24 @@ void jsonParse(){
 // Função de envio de mensagens
 void sendMessage(){
     jsonParse();
-    char str[10];
-    sprintf( str, "%u", nodeDestiny);
-    int len = strlen(str);
-    
-    // Serial.println("nodeDestiny: "+nodeDestiny);
-    // Serial.printf("nodeDestiny len: %d\n",len);
-    // Serial.printf("nodeDestiny str: %s\n",str);
-
     if(nodeOrigin == NODE_MASTER){
             if(meshSend){
-                // Serial.printf("sendMessage() if meshSend==true:......... %d",meshSend); // debug
                 if(sendType == 3){
-                    // Serial.println("sendMessage() broadcast if sendType==3: "+meshExternalMsg); // debug
                     mesh.sendBroadcast(meshExternalMsg);
                 }
-                else if(sendType == 2 && len == 10){
-                    // Serial.println("sendMessage() single if sendType==2:......... \n"+meshExternalMsg); // debug
-                    returnSendSingle = mesh.sendSingle(nodeDestiny,meshExternalMsg);
-                    if(returnSendSingle){
-                        countTries = 0;
-                    }
-                    else{
-                        countTries += 1;
-                        if(countTries >= maxTries){
+                else{
+                    //if(sendType == 2){
+                        returnSendSingle = mesh.sendSingle(nodeDestiny,meshExternalMsg);
+                        if(returnSendSingle){
                             countTries = 0;
                         }
-                    }
+                        else{
+                            countTries += 1;
+                            if(countTries >= maxTries){
+                                countTries = 0;
+                            }
+                        }
+                    //}
                 }
                 meshSend = false;
                 sendType = 1;
@@ -388,10 +377,6 @@ void sendSerial(){
         }
         c += 1;
     }
-    else{
-        // se for master, envie os dados recebidos da mesh e os meus
-        //Serial.println("ELSE sendSerial: se for master, envie os dados recebidos da mesh e os meus");
-    }
 }
 
 // lê a serial - apenas para node master
@@ -399,10 +384,11 @@ void readSerial(){
     if(Serial.available() > 0) {
         String jsonRec = Serial.readString();
         if(getParameters(jsonRec)){
-            Serial.println("Changing internal parameters...");
+            Serial.println("Changing internal parameters..................");
         }
         else{
             meshExternalMsg = jsonRec;
+            Serial.println("Redirecting message from sink.................");
         }
     }
 }

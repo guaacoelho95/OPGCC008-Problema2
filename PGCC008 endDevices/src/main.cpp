@@ -249,6 +249,7 @@ void receivedCallback(uint32_t from, String &msg){
         if(sendType == 4){
             Old_T_send = T_send;
             T_send = 1;
+            sendTimeAdjust();
         }
     }
 }
@@ -359,6 +360,7 @@ void sendMessage(){
             mesh.sendSingle(NODE_MASTER, meshMsg);
             if(sendType == 4){
                 T_send = Old_T_send;
+                sendTimeAdjust();
             }
         }
     }

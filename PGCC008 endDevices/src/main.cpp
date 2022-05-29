@@ -134,6 +134,7 @@
   
 // Período de leitura de dados do sensor (Sink received parameter)
     int T_send = 1;
+    int Old_T_send = 1;
 
 // Timestamp adjust
     unsigned long timestamp = 0;
@@ -242,6 +243,13 @@ void receivedCallback(uint32_t from, String &msg){
     }
     else{
         getParameters(msg.c_str());
+         // não está enviando a mensagem no mesmo instante
+         // o t_send anterior prevalece sobre a requisição direta de sendMessage()
+         // {"node_master":4208790561,"nodeDestiny":4208793911,"send": true,"type":4,"pinDef": [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
+        if(sendType == 4){
+            Old_T_send = T_send;
+            T_send = 1;
+        }
     }
 }
 
@@ -349,6 +357,9 @@ void sendMessage(){
     else{
         if(strlen(meshMsg) > 0){
             mesh.sendSingle(NODE_MASTER, meshMsg);
+            if(sendType == 4){
+                T_send = Old_T_send;
+            }
         }
     }
 }

@@ -42,6 +42,9 @@
       Você pode precisar instalar o driver ch340: <a href="https://github.com/angeload/pgcc008_2022-1_Probl1/tree/main/drivers">download aqui</a> (linux - testado em debian) ou <a href="https://github.com/angeload/pgcc008_2022-1_Probl1/blob/main/drivers/CH341SER_windows.zip">aqui</a> (windows).
    </li>
    <li>
+      Tutorial para usar o ESP8266 na PlatformIO Vs Code <a href="https://www.youtube.com/watch?v=0poh_2rBq7E">aqui</a>
+   </li>
+   <li>
       Tutorial para instalar o ESP8266 na IDE Arduino <a href="https://github.com/angeload/pgcc008_2022-1_Probl1/blob/main/tutorials/nodeMcu_on_Arduino_IDE.md">aqui</a>
    </li>
 </ol>

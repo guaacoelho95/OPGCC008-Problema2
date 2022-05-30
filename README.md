@@ -36,7 +36,7 @@
       Para desenvolver e carregar o código fonte no nodeMCU ESP8266 foi usado o Visual Studio Code com a extensão <a href="https://platformio.org/">PlatformIO</a>.
    </li>
     <li>      
-       Para usar a IDE do Arduino, utilize o arquivo main.cpp mudando a extensão para <b>.ino</b> e retirando a biblioteca <b>Arduino.h</b>.
+       Para usar o código na IDE do Arduino, utilize o arquivo <a href="https://github.com/guaacoelho95/OPGCC008-Problema2/blob/main/PGCC008%20endDevices/src/main.cpp">main.cpp</a> mudando a extensão para <b>.ino</b> e retirando a biblioteca <b>Arduino.h</b>.
    </li>
    <li>
       Você pode precisar instalar o driver ch340: <a href="https://github.com/angeload/pgcc008_2022-1_Probl1/tree/main/drivers">download aqui</a> (linux - testado em debian) ou <a href="https://github.com/angeload/pgcc008_2022-1_Probl1/blob/main/drivers/CH341SER_windows.zip">aqui</a> (windows).

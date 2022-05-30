@@ -15,6 +15,7 @@
     #include <painlessMesh.h>
     #include <string.h>
     #include <bits/stdc++.h>
+    #include <SimpleDHT.h>
 
  // Define name space   
     using namespace std;
@@ -27,11 +28,17 @@
     #define   WIFI_HIDE         1
     #define   WIFI_CHANNEL      1
 
+// dht11 config lib SimpleDHT
+    int pinDHT11 = 2; //D4
+    int dhtPinDef = 3; // elemento 3 do array pinDef
+    int dhtMeasure = 1; // tipo de medida que o DHT deve retornar
+    SimpleDHT11 dht11(pinDHT11);
+
 // define os pinhos
     #define   ANALOG            A0
     #define   GPIO00            D3
     #define   GPIO01            D3
-    #define   GPIO02            D4
+    #define   GPIO02            D4 // DHT11
     #define   GPIO03            D4
     #define   GPIO04            D2
     #define   GPIO05            D1
@@ -209,6 +216,12 @@ bool getParameters(String toGet){
             T_send = receivedJsonData["t_send"];
             sendTimeAdjust();
         }
+        if(receivedJsonData.containsKey("dhtPinDef")){
+            dhtPinDef = receivedJsonData["dhtPinDef"];
+        }
+        if(receivedJsonData.containsKey("dhtMeasure")){
+            dhtMeasure = receivedJsonData["dhtMeasure"];
+        }
         if(receivedJsonData.containsKey("pinDef")){
             if(nodeDestiny == nodeOrigin){
                 for(int i=0;i<PINS_NUM;++i){
@@ -243,9 +256,6 @@ void receivedCallback(uint32_t from, String &msg){
     }
     else{
         getParameters(msg.c_str());
-         // não está enviando a mensagem no mesmo instante
-         // o t_send anterior prevalece sobre a requisição direta de sendMessage()
-         // {"node_master":4208790561,"nodeDestiny":4208793911,"send": true,"type":4,"pinDef": [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
         if(sendType == 4){
             Old_T_send = T_send;
             T_send = 1;
@@ -283,6 +293,22 @@ void meshInit(){
 }
 
 // Leitura dos sensores
+float readDht11(int measure = 1){
+    float temperature = 0;
+    float humidity = 0;
+    unsigned char data[40] = {0};
+    int err = SimpleDHTErrSuccess;
+    if ((err = dht11.read2(&temperature, &humidity, data)) != SimpleDHTErrSuccess) {
+        return 0;
+    }
+    if(measure == 1){
+        return temperature;
+    }
+    else{
+        return humidity;
+    }
+}
+
 void readSensors(){
     for(int i = 0;i < PINS_NUM-1;++i){
       if(pinDef[i].pinSet == true){
@@ -291,7 +317,12 @@ void readSensors(){
                 pinData[i] = analogRead(pin);
             }
             else{
-                pinData[i] = digitalRead(pin); 
+                if(i == dhtPinDef){
+                    pinData[i] = readDht11(dhtMeasure);
+                }
+                else{
+                    pinData[i] = digitalRead(pin);
+                }
             }
       }
       else{
@@ -410,7 +441,7 @@ void readSerial(){
 void setup(){
     Serial.begin(115200);
     DateTime.setTimeZone("America/Bahia");
-    DateTime.begin(/* timeout param */);    
+    DateTime.begin(/* timeout param */);
     meshInit();
     pinEnable();
 }

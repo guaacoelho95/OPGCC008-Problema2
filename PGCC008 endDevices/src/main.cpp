@@ -57,6 +57,9 @@
 // Flame sensor
     int flamePinDef = 15;
 
+// UV sensor
+    bool uvMeasure = false;
+
 // define os pinos             pin | array |real pin 
     #define   ANALOG            A0  // 0    A0
     #define   GPIO00            D3  // 1    D3
@@ -235,6 +238,9 @@ bool getParameters(String toGet){
                 pinEnable();
             }
         }
+        if(receivedJsonData.containsKey("uvMeasure")){
+            uvMeasure = receivedJsonData["uvMeasure"];
+        }
         if(receivedJsonData.containsKey("dhtPinDef")){
             dhtPinDef = receivedJsonData["dhtPinDef"];
         }
@@ -410,8 +416,10 @@ void readSensors(){
             uint8_t pin = pinDef[i].pinNum;
             if(i == 0){
                 float a = analogRead(pin);
-                sendJsonData["uv"] = a;
                 pinData[i] = a;
+                if(uvMeasure == 1){
+                    sendJsonData["uv"] = a;
+                }
             }
             else{
                 if(i == dhtPinDef){
@@ -436,6 +444,10 @@ void readSensors(){
             pinData[i] = 0;
       }
     }
+    uvMeasure       = 0;
+    dhtMeasure      = 0;
+    bmp280Measure   = 0;
+    bmp180Measure   = 0;
 }
 
 // passagem dos dados para json

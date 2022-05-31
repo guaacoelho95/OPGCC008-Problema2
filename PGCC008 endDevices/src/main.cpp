@@ -58,7 +58,7 @@
     int flamePinDef = 15;
 
 // UV sensor
-    bool uvMeasure = false;
+    int uvMeasure = 0;
 
 // define os pinos             pin | array |real pin 
     #define   ANALOG            A0  // 0    A0
@@ -324,7 +324,7 @@ void meshInit(){
 }
 
 // Leitura do dht11
-float readDht11(int measure = 1){
+float readDht11(int measure = 4){
     float temperature = 0;
     float humidity = 0;
     unsigned char data[40] = {0};
@@ -349,7 +349,7 @@ float readDht11(int measure = 1){
 }
 
 // Leitura do bmp280
-float readBmp280(int measure = 1){
+float readBmp280(int measure = 4){
     if (bmp280.takeForcedMeasurement()) {
         if(measure == 1){
             return bmp280.readTemperature();
@@ -375,7 +375,7 @@ float readBmp280(int measure = 1){
 }
 
 // Leitura do bmp180
-float readBmp180(int measure = 1){
+float readBmp180(int measure = 4){
     if(measure == 1){
         return bmp180.readTemperature();
     }
@@ -409,27 +409,35 @@ bool readFlame(int pin){
     return flame;
 }
 
+float readUv(int pin,int measure = 0){
+    float a = analogRead(pin);
+    if(measure == 1){
+        sendJsonData["uv"] = a;
+    }
+    return a;
+}
+
 // Leitura de todos os sensores
 void readSensors(){
     for(int i = 0;i < PINS_NUM-1;++i){
       if(pinDef[i].pinSet == true){
             uint8_t pin = pinDef[i].pinNum;
             if(i == 0){
-                float a = analogRead(pin);
-                pinData[i] = a;
-                if(uvMeasure == 1){
-                    sendJsonData["uv"] = a;
-                }
+                pinData[i] = readUv(pin,uvMeasure);
+                uvMeasure = 0;
             }
             else{
                 if(i == dhtPinDef){
                     pinData[i] = readDht11(dhtMeasure);
+                    dhtMeasure = 4;
                 }
                 else if(i == bmp280PinDef){
                     pinData[i] = readBmp280(bmp280Measure);
+                    bmp280Measure = 4;
                 }
                 else if(i == bmp180PinDef){
                     pinData[i] = readBmp180(bmp180Measure);
+                    bmp180Measure = 4;
                 }
                 else if(i == flamePinDef){
                     pinMode(pin, INPUT_PULLUP);
@@ -444,10 +452,6 @@ void readSensors(){
             pinData[i] = 0;
       }
     }
-    uvMeasure       = 0;
-    dhtMeasure      = 0;
-    bmp280Measure   = 0;
-    bmp180Measure   = 0;
 }
 
 // passagem dos dados para json
@@ -512,17 +516,17 @@ void sendMessage(){
             }
     }
     else{
-        // para desativar o sendType4
+        // para desativar o sendType = 4
         if(strlen(meshMsg) > 0){
             mesh.sendSingle(NODE_MASTER, meshMsg);
             if(sendType == 4){
                 T_send = Old_T_send;
                 sendTimeAdjust();
+                resetJsonData();
                 sendType = 1;
             }
         }
     }
-    resetJsonData();
 }
 
 // envia as mensagens recebidas e formuladas para a serial (Sink) - apenas para node master

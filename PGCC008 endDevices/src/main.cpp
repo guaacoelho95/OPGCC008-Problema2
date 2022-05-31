@@ -16,6 +16,8 @@
     #include <string.h>
     #include <bits/stdc++.h>
     #include <SimpleDHT.h>
+    #include <Adafruit_BMP280.h>
+    #include <Adafruit_BMP085.h>
 
  // Define name space   
     using namespace std;
@@ -28,50 +30,47 @@
     #define   WIFI_HIDE         1
     #define   WIFI_CHANNEL      1
 
+// bmp280 config lib Adafruit_BMP280
+    #define BMP_SCK  (13)
+    #define BMP_MISO (12)
+    #define BMP_MOSI (11)
+    #define BMP_CS   (10)
+
 // dht11 config lib SimpleDHT
     int pinDHT11 = 2; //D4
     int dhtPinDef = 3; // elemento 3 do array pinDef
     int dhtMeasure = 1; // tipo de medida que o DHT deve retornar
     SimpleDHT11 dht11(pinDHT11);
 
-// define os pinhos
-    #define   ANALOG            A0
-    #define   GPIO00            D3
-    #define   GPIO01            D3
-    #define   GPIO02            D4 // DHT11
-    #define   GPIO03            D4
-    #define   GPIO04            D2
-    #define   GPIO05            D1
-    #define   GPIO06            D1  //unused
-    #define   GPIO07            D0  //unused
-    #define   GPIO08            D1  //unused
-    #define   GPIO09            D2  //unused
-    #define   GPIO10            D3  //unused
-    #define   GPIO11            D3  //unused
-    #define   GPIO12            D6  //unused
-    #define   GPIO13            D7
-    #define   GPIO14            D5
-    #define   GPIO15            D8
-    #define   GPIO16            D0
-    
-    // #define   ANALOG            A0
-    // #define   GPIO00            D3
-    // #define   GPIO01            TX
-    // #define   GPIO02            D4
-    // #define   GPIO03            RX
-    // #define   GPIO04            D2
-    // #define   GPIO05            D1
-    // #define   GPIO06            SK  //unsed
-    // #define   GPIO07            S0  //unsed
-    // #define   GPIO08            S1  //unsed
-    // #define   GPIO09            S2  //unsed
-    // #define   GPIO10            S3  //unsed
-    // #define   GPIO11            SC  //unsed
-    // #define   GPIO12            D6  //unsed
-    // #define   GPIO13            D7
-    // #define   GPIO14            D5
-    // #define   GPIO15            D8
-    // #define   GPIO16            D0
+// bmp280 config lib Adafruit_BMP280
+    int bmp280PinDef = 5; // D2
+    int bmp280Measure = 2;
+    Adafruit_BMP280 bmp280;
+
+// bmp180 config lib Adafruit_BMP085
+    int bmp180PinDef = 6; // D1
+    int bmp180Measure = 2;
+    Adafruit_BMP085 bmp180;
+
+// define os pinos             pin | array |real pin 
+    #define   ANALOG            A0  // 0    A0
+    #define   GPIO00            D3  // 1    D3
+    #define   GPIO01            D3  // 2    TX
+    #define   GPIO02            D4  // 3    D4 DHT11
+    #define   GPIO03            D4  // 4    RX
+    #define   GPIO04            D2  // 5    D2
+    #define   GPIO05            D1  // 6    D1
+    #define   GPIO06            D1  // 7    SK unused
+    #define   GPIO07            D0  // 8    S0 unused
+    #define   GPIO08            D1  // 9    S1 unused
+    #define   GPIO09            D2  // 10   S2 unused
+    #define   GPIO10            D3  // 11   S3 unused
+    #define   GPIO11            D3  // 12   SC unused
+    #define   GPIO12            D6  // 13   D6 unused
+    #define   GPIO13            D7  // 14   D7
+    #define   GPIO14            D5  // 15   D5
+    #define   GPIO15            D8  // 16   D8
+    #define   GPIO16            D0  // 17   D0
 
 // número de pinos definidos no array pinDef
     #define   PINS_NUM   18
@@ -138,6 +137,9 @@
 // Localização deste endDevice
     float latitude = -12.197422000000014;
     float longitude = -38.96674600000001;
+
+// Pressão local em milibar
+    float currentPressure = 1013.25;
   
 // Período de leitura de dados do sensor (Sink received parameter)
     int T_send = 1;
@@ -173,13 +175,13 @@
 void timestampAdjust(int t){
     adjusterTime = millis();
     timestamp = t;
-    //DateTime.setTime(timestamp);
 }
 
 // atualiza o tempo de envio das mensagens
 void sendTimeAdjust(){    
     taskSendMessage.setInterval(TASK_SECOND*T_send);
     taskSendMessage.enable();
+    Serial.printf("sendTimeAdjust:........................................... %d\n",T_send);
 }
 
 // habilita os pinos recebidos por parâmetro
@@ -216,12 +218,6 @@ bool getParameters(String toGet){
             T_send = receivedJsonData["t_send"];
             sendTimeAdjust();
         }
-        if(receivedJsonData.containsKey("dhtPinDef")){
-            dhtPinDef = receivedJsonData["dhtPinDef"];
-        }
-        if(receivedJsonData.containsKey("dhtMeasure")){
-            dhtMeasure = receivedJsonData["dhtMeasure"];
-        }
         if(receivedJsonData.containsKey("pinDef")){
             if(nodeDestiny == nodeOrigin){
                 for(int i=0;i<PINS_NUM;++i){
@@ -231,12 +227,31 @@ bool getParameters(String toGet){
                 pinEnable();
             }
         }
+        if(receivedJsonData.containsKey("dhtPinDef")){
+            dhtPinDef = receivedJsonData["dhtPinDef"];
+        }
+        if(receivedJsonData.containsKey("dhtMeasure")){
+            dhtMeasure = receivedJsonData["dhtMeasure"];
+        }
+        if(receivedJsonData.containsKey("bmp280PinDef")){
+            bmp280PinDef = receivedJsonData["bmp280PinDef"];
+        }
+        if(receivedJsonData.containsKey("bmp280Measure")){
+            bmp280Measure = receivedJsonData["bmp280Measure"];
+        }
+        if(receivedJsonData.containsKey("bmp180PinDef")){
+            bmp180PinDef = receivedJsonData["bmp180PinDef"];
+        }
+        if(receivedJsonData.containsKey("bmp180Measure")){
+            bmp180Measure = receivedJsonData["bmp180Measure"];
+        }
         if(receivedJsonData.containsKey("node_master")){
             uint32_t node_master = receivedJsonData["node_master"];
-            sendType = 3;
-            meshSend = true;
+            // sendType = 3;
+            // meshSend = true;
             NODE_MASTER = node_master;
         }
+        Serial.println("Parameters changed in this node....................");
         if(sendType==3){
             return false;
         }
@@ -245,6 +260,7 @@ bool getParameters(String toGet){
         }
     }
     else{
+        Serial.println("Parameters don't changed in this node..............");
         return false;
     }
 }
@@ -292,7 +308,7 @@ void meshInit(){
     nodeOrigin = mesh.getNodeId();
 }
 
-// Leitura dos sensores
+// Leitura do dht11
 float readDht11(int measure = 1){
     float temperature = 0;
     float humidity = 0;
@@ -309,6 +325,41 @@ float readDht11(int measure = 1){
     }
 }
 
+// Leitura do bmp280
+float readBmp280(int measure = 1){
+    if (bmp280.takeForcedMeasurement()) {
+        if(measure == 1){
+            return bmp280.readTemperature();
+        }
+        else if(measure == 2){
+            return bmp280.readPressure();
+        }
+        else{
+            return bmp280.readAltitude(currentPressure);
+        }
+    }
+    else{
+        return 0;
+    }
+}
+
+// Leitura do bmp180
+float readBmp180(int measure = 1){
+    if(measure == 1){
+        return bmp180.readTemperature();
+    }
+    else if(measure == 2){
+        return bmp180.readPressure();
+    }
+    else if(measure == 3){
+        return bmp180.readAltitude(currentPressure);
+    }
+    else{
+        return bmp180.readSealevelPressure();
+    }
+}
+
+// Leitura de todos os sensores
 void readSensors(){
     for(int i = 0;i < PINS_NUM-1;++i){
       if(pinDef[i].pinSet == true){
@@ -319,6 +370,12 @@ void readSensors(){
             else{
                 if(i == dhtPinDef){
                     pinData[i] = readDht11(dhtMeasure);
+                }
+                else if(i == bmp280PinDef){
+                    pinData[i] = readBmp280(bmp280Measure);
+                }
+                else if(i == bmp180PinDef){
+                    pinData[i] = readBmp180(bmp180Measure);
                 }
                 else{
                     pinData[i] = digitalRead(pin);
@@ -365,18 +422,16 @@ void sendMessage(){
                     mesh.sendBroadcast(meshExternalMsg);
                 }
                 else{
-                    //if(sendType == 2){
-                        returnSendSingle = mesh.sendSingle(nodeDestiny,meshExternalMsg);
-                        if(returnSendSingle){
+                    returnSendSingle = mesh.sendSingle(nodeDestiny,meshExternalMsg);
+                    if(returnSendSingle){
+                        countTries = 0;
+                    }
+                    else{
+                        countTries += 1;
+                        if(countTries >= maxTries){
                             countTries = 0;
                         }
-                        else{
-                            countTries += 1;
-                            if(countTries >= maxTries){
-                                countTries = 0;
-                            }
-                        }
-                    //}
+                    }
                 }
                 meshSend = false;
                 sendType = 1;
@@ -432,9 +487,24 @@ void readSerial(){
         }
         else{
             meshExternalMsg = jsonRec;
-            Serial.println("Redirecting message from sink.................");
+            Serial.println("Redirecting message from sink.........................");
         }
     }
+}
+
+// configura o bmp280
+void bmp280Config(){
+    bmp280.begin();
+    bmp280.setSampling( Adafruit_BMP280::MODE_FORCED, /* Operating Mode. */
+                    Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                    Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                    Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                    Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+}
+
+// configura o bmp180
+void bmp180Config(){
+    bmp180.begin();
 }
 
 // config
@@ -444,6 +514,8 @@ void setup(){
     DateTime.begin(/* timeout param */);
     meshInit();
     pinEnable();
+    bmp280Config();
+    bmp180Config();
 }
 
 // Loop

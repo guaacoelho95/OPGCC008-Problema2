@@ -16,6 +16,8 @@
     #include <string.h>
     #include <bits/stdc++.h>
     #include <SimpleDHT.h>
+    #include <Wire.h>
+    #include <SPI.h>
     #include <Adafruit_BMP280.h>
     #include <Adafruit_BMP085.h>
 
@@ -51,6 +53,9 @@
     int bmp180PinDef = 6; // D1
     int bmp180Measure = 4;
     Adafruit_BMP085 bmp180;
+
+// Flame sensor
+    int flamePinDef = 15;
 
 // define os pinos             pin | array |real pin 
     #define   ANALOG            A0  // 0    A0
@@ -248,6 +253,9 @@ bool getParameters(String toGet){
         if(receivedJsonData.containsKey("bmp180Measure")){
             bmp180Measure = receivedJsonData["bmp180Measure"];
         }
+        if(receivedJsonData.containsKey("flamePinDef")){
+            flamePinDef = receivedJsonData["flamePinDef"];
+        }
         if(receivedJsonData.containsKey("node_master")){
             uint32_t node_master = receivedJsonData["node_master"];
             NODE_MASTER = node_master;
@@ -384,13 +392,26 @@ float readBmp180(int measure = 1){
     }
 }
 
+// read flame sensor
+bool readFlame(){
+    bool flame = digitalRead(pin);
+    if(flame){
+        meshSend = false;
+        sendJsonData["flame"] = true;
+        sendMessage();
+    }
+    return flame;
+}
+
 // Leitura de todos os sensores
 void readSensors(){
     for(int i = 0;i < PINS_NUM-1;++i){
       if(pinDef[i].pinSet == true){
             uint8_t pin = pinDef[i].pinNum;
             if(i == 0){
-                pinData[i] = analogRead(pin);
+                float a = analogRead(pin);
+                sendJsonData["uv"] = a;
+                pinData[i] = a;
             }
             else{
                 if(i == dhtPinDef){
@@ -401,6 +422,10 @@ void readSensors(){
                 }
                 else if(i == bmp180PinDef){
                     pinData[i] = readBmp180(bmp180Measure);
+                }
+                else if(i == flamePinDef){
+                    pinMode(pin, INPUT_PULLUP);
+                    pinData[i] = readFlame();
                 }
                 else{
                     pinData[i] = digitalRead(pin);
@@ -466,11 +491,13 @@ void sendMessage(){
             }
     }
     else{
+        // para desativar o sendType4
         if(strlen(meshMsg) > 0){
             mesh.sendSingle(NODE_MASTER, meshMsg);
             if(sendType == 4){
                 T_send = Old_T_send;
                 sendTimeAdjust();
+                sendType = 1;
             }
         }
     }

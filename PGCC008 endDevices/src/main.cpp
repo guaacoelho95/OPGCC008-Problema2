@@ -39,17 +39,17 @@
 // dht11 config lib SimpleDHT
     int pinDHT11 = 2; //D4
     int dhtPinDef = 3; // elemento 3 do array pinDef
-    int dhtMeasure = 1; // tipo de medida que o DHT deve retornar
+    int dhtMeasure = 4; // tipo de medida que o DHT deve retornar
     SimpleDHT11 dht11(pinDHT11);
 
 // bmp280 config lib Adafruit_BMP280
     int bmp280PinDef = 5; // D2
-    int bmp280Measure = 2;
+    int bmp280Measure = 4;
     Adafruit_BMP280 bmp280;
 
 // bmp180 config lib Adafruit_BMP085
     int bmp180PinDef = 6; // D1
-    int bmp180Measure = 2;
+    int bmp180Measure = 4;
     Adafruit_BMP085 bmp180;
 
 // define os pinos             pin | array |real pin 
@@ -100,6 +100,9 @@
         {GPIO15, false},
         {GPIO16, false}
     };
+
+// Inicializa o json para envio
+    DynamicJsonDocument sendJsonData(1024);
 
 // Inicializa o array de dados dos sensores
     float pinData[PINS_NUM] = {0};
@@ -247,8 +250,6 @@ bool getParameters(String toGet){
         }
         if(receivedJsonData.containsKey("node_master")){
             uint32_t node_master = receivedJsonData["node_master"];
-            // sendType = 3;
-            // meshSend = true;
             NODE_MASTER = node_master;
         }
         Serial.println("Parameters changed in this node....................");
@@ -320,8 +321,16 @@ float readDht11(int measure = 1){
     if(measure == 1){
         return temperature;
     }
-    else{
+    else if(measure == 2){
         return humidity;
+    }
+    else if(measure == 4){
+        sendJsonData["temperature"] = temperature;
+        sendJsonData["humidity"] = humidity;
+        return 0;
+    }
+    else{
+        return -1;
     }
 }
 
@@ -334,12 +343,20 @@ float readBmp280(int measure = 1){
         else if(measure == 2){
             return bmp280.readPressure();
         }
-        else{
+        else if(measure == 3){
             return bmp280.readAltitude(currentPressure);
+        }
+        else if(measure == 4){
+            sendJsonData["temperature"] = bmp280.readTemperature();
+            sendJsonData["pressure"] = bmp280.readPressure();
+            return 0;
+        }
+        else{
+            return -1;
         }
     }
     else{
-        return 0;
+        return -1;
     }
 }
 
@@ -354,8 +371,16 @@ float readBmp180(int measure = 1){
     else if(measure == 3){
         return bmp180.readAltitude(currentPressure);
     }
-    else{
+    else if(measure == 5){
         return bmp180.readSealevelPressure();
+    }
+    else if(measure == 4){
+        sendJsonData["temperature"] = bmp180.readTemperature();
+        sendJsonData["pressure"] = bmp180.readPressure();
+        return 0;
+    }
+    else{
+        return -1;
     }
 }
 
@@ -390,7 +415,6 @@ void readSensors(){
 
 // passagem dos dados para json
 void jsonParse(){
-    DynamicJsonDocument sendJsonData(1024);
     sendJsonData["device"] = nodeOrigin;
     sendJsonData["node_master"] = NODE_MASTER;
     sendJsonData["nodeDestiny"] = NODE_MASTER;

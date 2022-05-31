@@ -392,8 +392,8 @@ float readBmp180(int measure = 1){
     }
 }
 
-// read flame sensor
-bool readFlame(){
+// read flame sensor trigger
+bool readFlame(int pin){
     bool flame = digitalRead(pin);
     if(flame){
         meshSend = false;
@@ -425,7 +425,7 @@ void readSensors(){
                 }
                 else if(i == flamePinDef){
                     pinMode(pin, INPUT_PULLUP);
-                    pinData[i] = readFlame();
+                    pinData[i] = readFlame(pin);
                 }
                 else{
                     pinData[i] = digitalRead(pin);
@@ -460,6 +460,15 @@ void jsonParse(){
         }
     }    
     serializeJson(sendJsonData, meshMsg);
+}
+
+// reseta os dados enviados
+void resetJsonData(){
+    sendJsonData.remove("temperature");
+    sendJsonData.remove("pressure");
+    sendJsonData.remove("humidity");
+    sendJsonData.remove("flame");
+    sendJsonData.remove("uv");
 }
 
 // Função de envio de mensagens
@@ -501,6 +510,7 @@ void sendMessage(){
             }
         }
     }
+    resetJsonData();
 }
 
 // envia as mensagens recebidas e formuladas para a serial (Sink) - apenas para node master

@@ -26,6 +26,13 @@
        <a href="https://github.com/guaacoelho95/OPGCC008-Problema2/tree/main/PGCC008%20endDevices">
          Código fonte genérico (para todos os endDevices da rede).
        </a>
+    </li>
+   <li>
+       <a href="https://github.com/guaacoelho95/OPGCC008-Problema2/blob/main/PGCC008%20endDevices/src/rasp-server.py>
+         Código do servidor implementado no Raspberry Pi.
+       </a>
+       
+       https://github.com/guaacoelho95/OPGCC008-Problema2/blob/main/PGCC008%20endDevices/src/rasp-server.py
    </li>
 </ul>
 

@@ -52,3 +52,27 @@
       Tutorial para usar o ESP8266 na IDE Arduino <a href="https://github.com/angeload/pgcc008_2022-1_Probl1/blob/main/tutorials/nodeMcu_on_Arduino_IDE.md">aqui</a>
    </li>
 </ol>
+
+### Descrição da implementação
+
+<p>
+   Inicialmente é definido um nodeMCU para funcionar como node master, sendo responsável por obter todas as mensagens provenientes dos outros Nodes e enviar, via comunicação serial, para o Raspberry Pi. Assim que o NodeMCU master se conecta via porta serial com o raspberry, ele começa a enviar pacote de dados contendo se id e a lista de nodes. Assim que o Raspberry recebe ele retorna uma mensagem que deve ser repassada para os outros nós. Essa mensagem contém:
+   <ul>
+    <li>      
+       timestamp: Para que os nodes sincronizem seu timestamp com o do Rasberry
+   </li>
+    <li>
+       id do nó master: Para que os outros nós saibam para quem enviar as informações obtidas pelos sensores
+   </li>
+   <li>
+      tempo de envio das mensagens
+   </li>
+   <li>
+      lista de ativação de pinos: Uma lista com 18 campos (um pra cada pino do NodeMCU) onde somente os que representam pinos com sensroes conectados a eles receberão valor 1. Essa definição faz que o nodeMCU pegue as informações apenas dos pinos com sensores, além de permitir uma possívelalteração na disposição dos mesmos.
+   </li>
+</ul>
+</p>   
+
+<p>
+   Feito isso todos os nós ajustam seus parâmetros e começam imediatamente a enviar seus pacotes de dados para o nodeMaster, que por sua vez irá enviar, via porta serial, para o Raspberry PI. O Raspberry PI ao receber as mensagens de dados armazena os valores captados em uma estrutura de dados, de modo que seja possível processa-los se desejado. Além desse armazenamento, também é realizado uma verificação de valores anormais, a detecção ou não desses valores também é armazenada na estruura de dados citada anteriormente.
+</p>

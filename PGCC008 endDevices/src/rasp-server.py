@@ -10,10 +10,10 @@ import time
 from datetime import datetime
 
 pin_dht11 = 3
-pin_bmp180 = 6
-pin_bmp280 = 5
+pin_bmp180 = [5, 6]
+pin_bmp280 = [5, 6]
 pin_uv = 0
-pin_chama = 1
+pin_chama = 15
 
 n_nodes = 4
 node_list = [4208803281, 4208793911, 4208790561, 4208779354]
@@ -27,14 +27,7 @@ def define_pinTable():
     '''
     def inicializar_pinos():
         '''
-        Lista de pinos e respectivos sensores:
-        1 - Temperatura
-        3 - Humidade
-        5 - Chama
-        6 - UV
-        14 - Pressão
-
-        Os números representam o índice do pino na lista de pinos disponíveis
+        Define os pinos que serão ativados em cada um dos nodes
         '''
 
         # Definir como True todos os pinos que serão utilizados.
@@ -51,11 +44,13 @@ def define_pinTable():
         tp[1][pin_chama] = 1
 
         # Node com temperatura humidade e uv
-        tp[2][pin_bmp180] = 1
+        tp[2][pin_bmp180[0]] = 1
+        tp[2][pin_bmp180[1]] = 1
         tp[2][pin_uv] = 1
 
         # Node com temperatura, humidade, uv e pressão
-        tp[3][pin_bmp280] = 1
+        tp[3][pin_bmp280[0]] = 1
+        tp[3][pin_bmp280[1]] = 1
         tp[3][pin_uv] = 1
 
         return tp
@@ -81,11 +76,11 @@ def send_setup_signal(data_in, connection):
     data["send"] = True
     data["send_type"] = 3
     data["timestamp"] = timestamp
-    data = data.dumps(data)
+    data = json.dumps(data)
     connection.write(data.encode('ascii'))
     connection.flush()
     time.sleep(0.5)
-    print(data)
+    #print(data)
     for n in node_list:
         data = {}
         data["nodeDestiny"] = n
@@ -122,12 +117,12 @@ def changeFrequency(id, frequence, connection):
     return
 
 def verifica_anomalia(data):
-
-    temperatura = data["temperature"]
-    chama = data["flame"]
-    uv = data["uv"]
-
-    # Se ocorrer muito alta radiação devo considerar como alta radiação tambem ou serão excludentes?
+    '''
+    Verifica a existência de anomalias nos sinais recebidos pelos sensores
+    '''
+    temperatura = database["temperature"][-1]
+    chama = database["flame"][-1]
+    uv = database["uv"][-1]
 
     if uv is None or uv <= 5:
         database["alta_rad"].append(0)
@@ -174,7 +169,10 @@ def verifica_anomalia(data):
     return
 
 def leitura_dados(data):
-
+    '''
+    Realiza a leitura dos dados recebidos pela porta serial e armazena na estrutura de dados
+    contendo todos os valores medidos, além das outras informações relevantes como latitude e longitude.
+    '''
     database["id"].append(data["device"])
     database["timestamp"].append(data["timestamp"])
     database["latitude"].append(data["latitude"])
@@ -200,13 +198,24 @@ database = {"id":[], "timestamp": [], "latitude":[], "longitude":[], "uv": [], "
 connection = serial.Serial(port="/dev/ttyUSB0", baudrate=115200)
 connection.reset_input_buffer()
 
+cont = 1
+n_bkup = 15
 while(True):
 
         msg = connection.readline().decode("utf-8")
+        connection.reset_input_buffer()
         data = json.loads(msg)
         print(data)
         if "id_node" in  data.keys():
             pin = send_setup_signal(data, connection)
         else:
             leitura_dados(data)
+            cont = cont + 1
+
+        # A nada n_bkup mensagens recebidas é realizado o backup dos dados
+        if(cont % n_bkup == 0):
+                print("Starting backup")
+                pickle.dump(data, open("savingData.p", "wb"))
+                print("Backup finished")
+        
 

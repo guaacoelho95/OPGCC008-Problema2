@@ -74,5 +74,7 @@
 </p>   
 
 <p>
-   Feito isso todos os nós ajustam seus parâmetros e começam imediatamente a enviar seus pacotes de dados para o nodeMaster, que por sua vez irá enviar, via porta serial, para o Raspberry PI. O Raspberry PI ao receber as mensagens de dados armazena os valores captados em uma estrutura de dados, de modo que seja possível processa-los se desejado. Além desse armazenamento, também é realizado uma verificação de valores anormais, a detecção ou não desses valores também é armazenada na estruura de dados citada anteriormente.
+   Feito isso todos os nós ajustam seus parâmetros e começam imediatamente a enviar seus pacotes de dados para o nodeMaster, que por sua vez irá enviar, via porta serial, para o Raspberry PI. O Raspberry PI ao receber as mensagens de dados armazena os valores captados em uma estrutura de dados, de modo que seja possível processa-los se desejado. Além desse armazenamento, também é realizado uma verificação de valores anormais, a detecção ou não desses valores também é armazenada na estrutura de dados citada anteriormente.
+   
+   Além disso, a cada 15 mensagens recebidas o Raspberry realiza um processo de backup, salvando a estrutura de dados em um arquivo binário.
 </p>
